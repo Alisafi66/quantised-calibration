@@ -1,0 +1,33 @@
+# Every run is fully described by one config file. Nothing is hard-coded.
+seed_list: [0, 1, 2, 3, 4]        # five seeds per configuration
+
+dataset:
+  name: ag_news                    # ag_news | dbpedia_14 | open_food_facts
+  snapshot_date: null              # pinned at first download
+  snapshot_sha256: null            # recorded by scripts/fetch_data.py
+  text_fields: [title, description]
+  label_field: label
+
+model:
+  kind: tfidf_logreg               # tfidf_logreg | transformer
+  transformer_name: distilbert-base-uncased
+  max_length: 128
+
+quantisation:
+  precisions: [fp32, int8, int4]   # fp32 is the control condition
+  backend: onnxruntime
+  calibration_samples: 512         # NOTE: PTQ calibration SET, not probability calibration
+
+evaluation:
+  macro_f1_tolerance: 1.0          # hold accuracy within one point across precisions
+  ece_bins: 15
+  target_precision: 0.95           # the promise the abstention threshold must keep
+  confidence_signals: [softmax, margin, entropy]
+  remedies: [none, temperature_refit, threshold_retune, split_conformal]
+  bootstrap_resamples: 2000
+
+device:
+  enabled: false                   # set true when running on the Android device
+  name: null
+  runtime: onnxruntime-mobile
+  latency_percentiles: [50, 95]
