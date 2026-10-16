@@ -1,8 +1,12 @@
 # Every run is fully described by one config file. Nothing is hard-coded.
+# Revised 17 Oct 2026 after supervisory feedback: one corpus, two remedies,
+# accuracy observed rather than filtered, device overhead reported as a ratio.
 seed_list: [0, 1, 2, 3, 4]        # five seeds per configuration
 
 dataset:
-  name: ag_news                    # ag_news | dbpedia_14 | open_food_facts
+  name: ag_news                    # the single benchmark; see `variant` below
+  variant: balanced                # balanced | long_tailed
+  long_tail_fractions: [1.0, 0.3, 0.1, 0.03]   # per-class keep rates, RQ1(b)
   snapshot_date: null              # pinned at first download
   snapshot_sha256: null            # recorded by scripts/fetch_data.py
   text_fields: [title, description]
@@ -15,19 +19,36 @@ model:
 
 quantisation:
   precisions: [fp32, int8, int4]   # fp32 is the control condition
-  backend: onnxruntime
+  backend: onnxruntime             # int4 goes via bitsandbytes on CUDA
   calibration_samples: 512         # NOTE: PTQ calibration SET, not probability calibration
 
 evaluation:
-  macro_f1_tolerance: 1.0          # hold accuracy within one point across precisions
+  # Macro-F1 is an OBSERVED COVARIATE, not an eligibility filter. A precision
+  # whose accuracy falls further is interpreted, never excluded; filtering would
+  # have discarded INT4 entirely. `macro_f1_reference_band` only flags cells in
+  # the written results, it does not drop them.
+  macro_f1_reference_band: 1.0
+  drop_cells_outside_band: false
   ece_bins: 15
   target_precision: 0.95           # the promise the abstention threshold must keep
   confidence_signals: [softmax, margin, entropy]
-  remedies: [none, temperature_refit, threshold_retune, split_conformal]
+  baseline: threshold_retune       # the practitioner's first attempt, not a treatment
+  remedies: [temperature_refit, split_conformal]
   bootstrap_resamples: 2000
 
 device:
   enabled: false                   # set true when running on the Android device
-  name: null
+  name: null                       # exact handset model, recorded before any run
   runtime: onnxruntime-mobile
-  latency_percentiles: [50, 95]
+  primary_measure: relative_overhead   # ratio against FP32 on the same handset
+  latency_percentiles: [50, 95]        # absolute, secondary, hardware-specific
+  warmup_iterations: 20                # discarded
+  measured_iterations: 200
+  interleave_conditions: true          # thermal drift then affects all cells alike
+  fallback: desktop_cpu_proxy          # declared as a limitation if used
+
+# Conditional extension, not part of the core design. Attempted only if RQ1 and
+# RQ2 complete ahead of schedule, and only with the supervisor informed.
+extensions:
+  second_corpus: open_food_facts
+  enabled: false
