@@ -56,3 +56,35 @@ factors, zero points and Hessian-weighted updates — not in the
 confidence-versus-correctness sense. The collision is terminological. This is
 worth a sentence in the positioning section rather than a threat to the
 contribution.
+
+## 21 October 2026 — nearest prior work found; RQ2 reframed
+
+A Google Scholar citation alert on Timbus and Lemnaru surfaced the only paper
+citing them: **El Allam and Hamlich (2026)**, *Quantization-aware Mondrian
+conformal prediction for embedded ECG classification*, Biomedical Signal
+Processing and Control, DOI 10.1016/j.bspc.2026.111217. Free preprint at SSRN
+5944060.
+
+They ran the comparison at the centre of RQ2. Conformal calibration derived at
+FP32 and applied to INT8 inference reached **87.84 per cent coverage against a
+90 per cent target**; recalibrating with the deployed INT8 model restored it to
+90.09 per cent. Pooled calibration concealed class-specific undercoverage that
+Mondrian class-conditional calibration removed, cutting the class-coverage gap
+from 3.06 to 0.12 percentage points. Profiled on an ESP32S3: 26.7 KB model,
+conformal set construction under 0.1 ms.
+
+**Consequence.** RQ2 can no longer ask whether a full-precision threshold still
+holds after quantisation; that is now published. It is reframed as a question
+of boundary and magnitude: how far the effect reaches in multi-class text at
+INT4, measured through an abstention threshold at a precision target rather
+than through prediction sets.
+
+**What remains ours.** Text rather than 12-lead ECG; INT4 as well as INT8;
+multi-class rather than binary; abstention at a precision target rather than
+conformal set size; three confidence signals compared rather than conformal
+alone; temperature re-fitting as a comparator, which they do not test; and
+calibration error measured apart from accuracy, which is RQ1 and which their
+coverage framing never addresses.
+
+This is a stronger position than before. The premise is no longer speculative,
+and the contribution becomes how far a demonstrated effect generalises.
