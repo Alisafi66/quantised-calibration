@@ -1,6 +1,7 @@
 # core
 numpy>=1.26
 pandas>=2.2
+pyarrow>=15.0            # datasets needs it to materialise splits
 scikit-learn>=1.5
 scipy>=1.13
 # models
@@ -10,6 +11,8 @@ datasets>=3.0
 # quantisation + on-device export
 onnx>=1.16
 onnxruntime>=1.19
+onnxscript>=0.7          # torch.onnx.export uses it for the dynamo path
+onnx_ir>=0.1             # required by onnxruntime's INT4 MatMulNBits quantiser
 optimum[onnxruntime]>=1.22
 # calibration / conformal
 netcal>=1.3
