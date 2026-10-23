@@ -38,19 +38,33 @@ def coverage_and_precision(conf: np.ndarray, correct: np.ndarray, threshold: flo
     return coverage, delivered
 
 
-def threshold_for_target_precision(conf: np.ndarray, correct: np.ndarray, target: float) -> float:
-    """Lowest threshold whose delivered precision still meets the target.
+def threshold_for_target_precision(conf: np.ndarray, correct: np.ndarray, target: float,
+                                   min_coverage: float = 0.0) -> float:
+    """The most permissive threshold that still keeps the precision promise.
 
-    This is the threshold a practitioner would set at full precision — and the
-    one RQ2 carries across to the quantised model unchanged.
+    A practitioner wants to answer as many inputs as possible while delivering
+    the precision they advertised, so the threshold wanted is the lowest one
+    whose delivered precision is still at or above the target.
+
+    Scanning down from the top and stopping at the first dip does not find it.
+    Near the top the answered set is tiny, so a single mistake drops precision
+    far below target and the scan halts on noise, returning a threshold that
+    answers one input in a hundred.  The whole ranking is examined instead and
+    the largest qualifying answered set is taken.
+
+    Returns nan when no threshold meets the target, which is itself a finding:
+    the model cannot keep that promise at any coverage.
     """
-    for t in np.unique(np.asarray(conf, float))[::-1]:
-        _, delivered = coverage_and_precision(conf, correct, t)
-        if not np.isnan(delivered) and delivered >= target:
-            best = t
-        else:
-            break
-    return float(locals().get("best", 1.0))
+    conf, correct = np.asarray(conf, float), np.asarray(correct, float)
+    order = np.argsort(-conf)
+    c, sorted_conf = correct[order], conf[order]
+    k = np.arange(1, len(c) + 1)
+    running_precision = np.cumsum(c) / k
+    coverage = k / len(c)
+    qualifies = (running_precision >= target) & (coverage >= min_coverage)
+    if not qualifies.any():
+        return float("nan")
+    return float(sorted_conf[np.flatnonzero(qualifies)[-1]])
 
 
 def risk_coverage_curve(conf: np.ndarray, correct: np.ndarray):

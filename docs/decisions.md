@@ -200,3 +200,30 @@ predicted probabilities for every precision on the test and calibration splits,
 about 300 KB apiece, and every quantity in RQ1 and RQ2 is recoverable from
 them. The graphs stay on the machine that made them and go to the handset
 directly when RQ3 needs them.
+
+## 24 October 2026 — the threshold definition was wrong, and untested
+
+`threshold_for_target_precision` scanned confidences downward and stopped at
+the first point where delivered precision fell below target. Near the top of
+the ranking the answered set is a handful of inputs, so one mistake drops
+precision far below any target and the scan halted on noise. On the pilot it
+returned 0.9819, answering 1.3 per cent of inputs, where 0.8631 answers 80 per
+cent and keeps the same promise.
+
+It had no test. Three now cover it: that it takes the largest qualifying
+answered set, that a single error at the top does not derail it, and that it
+returns nan when no threshold can keep the promise, which is itself a finding
+rather than an error.
+
+The definition now reads: the most permissive threshold whose delivered
+precision is still at or above target. That is what a practitioner wants,
+answer as much as possible while keeping the advertised precision, and it is
+the quantity RQ2 carries across precisions.
+
+**A second failure mode for RQ2.** On the pilot, a threshold fitted at FP32 and
+carried unchanged held its precision at INT8 but coverage collapsed from 79 to
+50 per cent: quantisation suppressed confidence, so the model abstained far
+more rather than answering wrongly. El Allam and Hamlich report the opposite
+direction, undercoverage of the promise. Both are failures of transfer, and RQ2
+should expect either. Worth stating in the thesis that the threshold can fail
+by becoming too cautious as well as too permissive.

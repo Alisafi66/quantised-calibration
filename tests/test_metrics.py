@@ -61,3 +61,35 @@ def test_bootstrap_ci_is_reproducible():
     a = bootstrap_ci(expected_calibration_error, conf, correct, n_resamples=200, seed=3)
     b = bootstrap_ci(expected_calibration_error, conf, correct, n_resamples=200, seed=3)
     assert a == b
+
+
+def test_threshold_maximises_coverage_subject_to_the_promise():
+    from qcal.metrics import threshold_for_target_precision, coverage_and_precision
+    # 90 correct at high confidence, 10 wrong at low: a 0.90 target should
+    # answer nearly everything, not retreat to the very top of the ranking.
+    conf = np.concatenate([np.linspace(0.99, 0.80, 90), np.linspace(0.79, 0.60, 10)])
+    correct = np.concatenate([np.ones(90), np.zeros(10)])
+    t = threshold_for_target_precision(conf, correct, 0.90)
+    cov, prec = coverage_and_precision(conf, correct, t)
+    assert prec >= 0.90
+    assert cov >= 0.89, f"retreated to {cov:.2%} coverage when 90% was available"
+
+
+def test_threshold_is_not_derailed_by_one_error_at_the_top():
+    from qcal.metrics import threshold_for_target_precision, coverage_and_precision
+    # the single most confident prediction is wrong; a naive downward scan
+    # stops immediately and returns a near-useless threshold
+    conf = np.linspace(0.99, 0.50, 100)
+    correct = np.ones(100)
+    correct[0] = 0.0
+    t = threshold_for_target_precision(conf, correct, 0.95)
+    cov, prec = coverage_and_precision(conf, correct, t)
+    assert prec >= 0.95
+    assert cov > 0.5, f"only {cov:.2%} coverage; derailed by the leading error"
+
+
+def test_threshold_is_nan_when_the_promise_cannot_be_kept():
+    from qcal.metrics import threshold_for_target_precision
+    conf = np.linspace(0.9, 0.5, 50)
+    correct = np.zeros(50)
+    assert np.isnan(threshold_for_target_precision(conf, correct, 0.95))
