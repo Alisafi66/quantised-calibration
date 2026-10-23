@@ -1,25 +1,32 @@
+# Only what the code imports. Declaring more than that is not harmless: an
+# earlier list carried optimum[onnxruntime], netcal and mapie, none of which
+# were used, and their pins sent pip's resolver into 200,000 rounds of
+# backtracking before it gave up. Calibration metrics and split conformal
+# prediction are implemented in src/qcal/metrics.py for the same reason the
+# rest of that module is: the definitions are reported in the dissertation and
+# should be explicit and testable rather than inherited from a library.
+
 # core
 numpy>=1.26
 pandas>=2.2
 pyarrow>=15.0            # datasets needs it to materialise splits
 scikit-learn>=1.5
 scipy>=1.13
+
 # models
 torch>=2.4
 transformers>=4.44
 datasets>=3.0
-# quantisation + on-device export
+
+# quantisation and on-device export
 onnx>=1.16
 onnxruntime>=1.19
 onnxscript>=0.7          # torch.onnx.export uses it for the dynamo path
 onnx_ir>=0.1             # required by onnxruntime's INT4 MatMulNBits quantiser
-optimum[onnxruntime]>=1.22
-# calibration / conformal
-netcal>=1.3
-mapie>=0.9
-# plotting + reporting
+
+# figures
 matplotlib>=3.9
-tabulate>=0.9
+
 # tooling
 pytest>=8.3
 ruff>=0.6
