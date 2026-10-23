@@ -67,3 +67,42 @@ def aurc(conf: np.ndarray, correct: np.ndarray) -> float:
     """Area under the risk–coverage curve. Lower is better."""
     coverage, risk = risk_coverage_curve(conf, correct)
     return float(np.trapezoid(risk, coverage))
+
+
+def per_class_ece(conf: np.ndarray, correct: np.ndarray, true_label: np.ndarray,
+                  n_classes: int, n_bins: int = 15) -> dict[int, float]:
+    """ECE computed separately within each true class.
+
+    RQ1(b) asks whether calibration damage is uniform or concentrates in the
+    classes a model saw rarely, which a single pooled figure cannot answer: a
+    large error on a small class is invisible once it is averaged against a
+    well-calibrated majority.
+    """
+    true_label = np.asarray(true_label)
+    out: dict[int, float] = {}
+    for c in range(n_classes):
+        m = true_label == c
+        out[c] = (expected_calibration_error(conf[m], correct[m], n_bins)
+                  if m.sum() else float("nan"))
+    return out
+
+
+def bootstrap_ci(statistic, *arrays: np.ndarray, n_resamples: int = 2000,
+                 alpha: float = 0.05, seed: int = 0) -> tuple[float, float]:
+    """Percentile bootstrap interval over the evaluation set.
+
+    A deterministic model fitted on fixed data gives the same answer at every
+    seed, so seed-to-seed spread cannot express the uncertainty in a figure
+    like ECE.  Resampling the test set can: it asks how far the number would
+    move had the evaluation drawn a different sample of the same size, which
+    is the question a reader of the results actually has.
+    """
+    arrays = [np.asarray(a) for a in arrays]
+    n = len(arrays[0])
+    rng = np.random.default_rng(seed)
+    vals = np.empty(n_resamples, dtype=float)
+    for b in range(n_resamples):
+        idx = rng.integers(0, n, size=n)
+        vals[b] = statistic(*(a[idx] for a in arrays))
+    lo, hi = np.percentile(vals, [100 * alpha / 2, 100 * (1 - alpha / 2)])
+    return float(lo), float(hi)

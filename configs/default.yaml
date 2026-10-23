@@ -5,7 +5,7 @@ seed_list: [0, 1, 2, 3, 4]        # five seeds per configuration
 
 dataset:
   name: ag_news                    # the single benchmark; see `variant` below
-  variant: balanced                # balanced | long_tailed
+  variant: balanced                   # balanced | long_tailed
   prob_calib_fraction: 0.15        # held out of training for temperature / conformal
   long_tail_fractions: [1.0, 0.3, 0.1, 0.03]   # per-class keep rates, RQ1(b)
   snapshot_date: 2026-10-23              # pinned at first download

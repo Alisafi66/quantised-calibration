@@ -130,3 +130,46 @@ digests match the files on disk. A separate check found no exact duplicate
 texts within any split and no text carrying conflicting labels. Near-duplicate
 detection remains open and belongs in threats to validity, informed by papers
 18 and 19.
+
+## 23 October 2026 — TF-IDF baseline, simulated quantisation, pilot closed
+
+`run_rq1.py` now runs end to end. Pipeline proven; the numbers below are a
+pilot signal from the linear baseline, not a result.
+
+**Quantisation is simulated for the linear model.** A TF-IDF classifier has no
+ONNX graph worth quantising, so `src/qcal/quantise.py` maps values onto the
+integer grid a backend would use and back again, so downstream arithmetic sees
+the same rounding error. Weights are symmetric and per-output-class; the
+activation range is observed on the PTQ calibration sample, never on test,
+because a deployed model cannot see its test inputs. The transformer will use a
+real backend; this keeps the baseline runnable on the laptop.
+
+**Seed variance for this model is exactly zero.** Five seeds return identical
+figures, because logistic regression fitted by lbfgs on fixed data is
+deterministic. Reporting seed spread here would claim an uncertainty of zero
+that no reader should believe, so intervals come from a percentile bootstrap
+over the evaluation set instead (`bootstrap_ci`, 2000 resamples). Seeds are
+retained because the transformer will genuinely vary across them.
+
+**Two patterns worth testing properly.**
+
+*Balanced split.* INT8 is inert: macro-F1 and ECE move within the bootstrap
+interval. INT4 costs 0.51 points of macro-F1 while ECE rises from 0.0206 to
+0.0257, a quarter again, with the intervals [0.0161, 0.0266] and [0.0214,
+0.0322] barely separated. Disproportionate in direction but not yet
+convincingly so in magnitude, which is the honest reading.
+
+*Long-tailed split.* Two things happen at once. At FP32, per-class ECE runs
+0.0182 for the majority class against **0.2139 for the rarest**, a twelvefold
+gap: RQ1(b)'s premise holds plainly. And INT4 *improves* pooled ECE, 0.0469 to
+0.0335, while macro-F1 is flat. The mechanism looks like Xia et al. (2023):
+the model is overconfident, quantisation noise lowers mean confidence from
+0.8131 to 0.7995, and the error shrinks by accident. The per-class figures show
+what the pooled number hides, with World worsening 0.0182 to 0.0265 and Sports
+0.0620 to 0.0762 while the rare class barely moves. This mirrors El Allam and
+Hamlich's finding that pooled calibration conceals class-specific behaviour,
+and it is an argument for reporting per-class throughout.
+
+**Caveat on all of it.** One model family, simulated rather than backend
+quantisation, no remedies applied, a single corpus. The transformer is the test
+of whether any of this survives.
