@@ -88,3 +88,45 @@ coverage framing never addresses.
 
 This is a stronger position than before. The premise is no longer speculative,
 and the contribution becomes how far a demonstrated effect generalises.
+
+## 23 October 2026 — data pipeline: splits, the long tail, and two senses of "calibration"
+
+Ethics turned out not to be required for a secondary-data study. Dr Minhas
+confirmed it, the dissertation team's own reminder states it, and written
+confirmation has been requested from the team. Work therefore began earlier
+than the roadmap assumed.
+
+`scripts/fetch_data.py` pins AG News (`fancyzhx/ag_news`) and derives every
+split. Each split is written as JSONL with a fixed field and row order before
+being hashed, because only a canonical serialisation hashes the same way twice;
+the download cache does not. `data/processed/manifest.json` records the counts
+and digests and is committed, while the data itself is not.
+
+**Three decisions worth defending in the methodology chapter.**
+
+*The probability-calibration split is held out of training entirely.* 15 per
+cent of AG News's training set, stratified, giving 18,000 rows. Temperature
+scaling and split conformal prediction both need honest held-out data; reusing
+training rows would flatter every remedy RQ3 evaluates, and the error would not
+show up in the numbers.
+
+*The PTQ calibration sample is a different thing that shares a name.* The 512
+rows a quantisation backend uses to choose scaling factors are drawn from the
+training portion, balanced across classes, because that is what a practitioner
+would have at quantisation time. Keeping it apart from the probability
+calibration split is the difference between a clean result and a leak.
+
+*The long tail imbalances training only.* Keep rates of 1.0, 0.3, 0.1 and 0.03
+give 25,500 / 7,650 / 2,550 / 765, an imbalance ratio of 33:1. RQ1(b) asks
+whether calibration damage concentrates in classes the model saw rarely, so the
+imbalance belongs in what the model learns from. The test set stays balanced at
+1,900 per class, because measuring per-class calibration needs enough examples
+of each class to measure.
+
+**Leakage checked, not assumed.** `tests/test_data.py` asserts that the
+calibration split shares no row with training, that the test split shares none
+with either, that the long tail is a subset of training, and that the manifest
+digests match the files on disk. A separate check found no exact duplicate
+texts within any split and no text carrying conflicting labels. Near-duplicate
+detection remains open and belongs in threats to validity, informed by papers
+18 and 19.

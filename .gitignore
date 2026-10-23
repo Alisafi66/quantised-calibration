@@ -2,6 +2,8 @@
 data/raw/*
 data/processed/*
 !data/**/.gitkeep
+# the manifest is the record of what was pinned, so it is kept
+!data/processed/manifest.json
 results/raw/*
 !results/raw/.gitkeep
 *.onnx
