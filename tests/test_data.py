@@ -76,9 +76,11 @@ def test_jsonl_roundtrip_and_stable_hash(tmp_path):
 
 # --- guards on the real artefacts, skipped until the snapshot is pinned -----
 
+# the manifest is committed but the splits are not, so a fresh clone has one
+# without the other; gate on a split file, which is what these tests actually read
 needs_snapshot = pytest.mark.skipif(
-    not (PROC / "manifest.json").exists(),
-    reason="run scripts/fetch_data.py first")
+    not (PROC / "train_balanced.jsonl").exists(),
+    reason="no local snapshot; run scripts/fetch_data.py first")
 
 
 @needs_snapshot
