@@ -173,3 +173,30 @@ and it is an argument for reporting per-class throughout.
 **Caveat on all of it.** One model family, simulated rather than backend
 quantisation, no remedies applied, a single corpus. The transformer is the test
 of whether any of this survives.
+
+## 24 October 2026 — the calibration split was three times larger than it needed to be
+
+The probability-calibration split was set at 15 per cent of training, 18,000
+rows, chosen without asking what split conformal prediction actually requires.
+It requires much less. The realised coverage of a split conformal predictor has
+an irreducible spread of sqrt(alpha(1-alpha)/(n+2)): 0.39 percentage points at
+6,000 calibration rows against 0.22 at 18,000. Three times the data buys 0.17
+percentage points.
+
+Against that it cost 12,000 rows of training data and tripled the inference
+bill of every run, since probabilities are emitted for the calibration split as
+well as the test split at all three precisions. A smoke test was still running
+after forty minutes.
+
+The fraction is now 5 per cent: 6,000 calibration rows, 114,000 for training.
+Temperature scaling fits one parameter and needs far less again. All splits
+were re-pinned and the manifest digests changed; nothing depended on the old
+ones.
+
+**The cross-machine interface is the probability matrix, not the model.** A
+fine-tuned graph is 256 MB and the full grid is 7.5 GB, past GitHub's per-file
+limit and with no business in a repository. `results/probs/*.npz` holds the
+predicted probabilities for every precision on the test and calibration splits,
+about 300 KB apiece, and every quantity in RQ1 and RQ2 is recoverable from
+them. The graphs stay on the machine that made them and go to the handset
+directly when RQ3 needs them.

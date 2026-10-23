@@ -9,6 +9,9 @@ results/raw/*
 *.onnx
 *.tflite
 checkpoints/
+# fine-tuned graphs are 256 MB each; the probability matrices travel instead
+models/*
+!models/manifest_*.json
 # python
 __pycache__/
 *.py[cod]

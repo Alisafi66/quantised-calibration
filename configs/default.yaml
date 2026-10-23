@@ -6,7 +6,9 @@ seed_list: [0, 1, 2, 3, 4]        # five seeds per configuration
 dataset:
   name: ag_news                    # the single benchmark; see `variant` below
   variant: balanced                   # balanced | long_tailed
-  prob_calib_fraction: 0.15        # held out of training for temperature / conformal
+  prob_calib_fraction: 0.05        # 6,000 rows; split conformal's coverage spread is
+                                   # 0.39pp here against 0.22pp at 18,000, which does
+                                   # not justify 12,000 training rows and 3x inference
   long_tail_fractions: [1.0, 0.3, 0.1, 0.03]   # per-class keep rates, RQ1(b)
   snapshot_date: 2026-10-23              # pinned at first download
   snapshot_sha256: 3953b10dda67289d            # recorded by scripts/fetch_data.py
@@ -17,6 +19,11 @@ model:
   kind: tfidf_logreg               # tfidf_logreg | transformer
   transformer_name: distilbert-base-uncased
   max_length: 128
+
+training:                          # the transformer only; the linear model has no schedule
+  epochs: 2
+  batch_size: 32
+  learning_rate: 5.0e-5
 
 quantisation:
   precisions: [fp32, int8, int4]   # fp32 is the control condition

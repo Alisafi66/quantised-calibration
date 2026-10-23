@@ -6,9 +6,9 @@
     "Business",
     "Sci/Tech"
   ],
-  "pinned_utc": "2026-10-23T10:03:13Z",
+  "pinned_utc": "2026-10-23T22:15:20Z",
   "seed": 0,
-  "prob_calib_fraction": 0.15,
+  "prob_calib_fraction": 0.05,
   "long_tail_fractions": [
     1.0,
     0.3,
@@ -18,23 +18,23 @@
   "ptq_calibration_samples": 512,
   "splits": {
     "train_balanced": {
-      "n": 102000,
-      "sha256": "0df1f3d4a99020a8a3721f9b17c88ee1f712c3d4b4b040f779c43fbb24404e22",
+      "n": 114000,
+      "sha256": "53f45a2134cff177bf0bf6a90c5d870b3cea974ff8eebffc85402a72065daeb9",
       "class_counts": {
-        "World": 25500,
-        "Sports": 25500,
-        "Business": 25500,
-        "Sci/Tech": 25500
+        "World": 28500,
+        "Sports": 28500,
+        "Business": 28500,
+        "Sci/Tech": 28500
       }
     },
     "prob_calib": {
-      "n": 18000,
-      "sha256": "62b5e6502ef5b4858e96197c5473b5c8d389adbdee9367ac4b01fbc89924d7c7",
+      "n": 6000,
+      "sha256": "e6b4f56900624101045309124a28ab20c4b76819bf30e754498b54288a0967ac",
       "class_counts": {
-        "World": 4500,
-        "Sports": 4500,
-        "Business": 4500,
-        "Sci/Tech": 4500
+        "World": 1500,
+        "Sports": 1500,
+        "Business": 1500,
+        "Sci/Tech": 1500
       }
     },
     "test": {
@@ -48,18 +48,18 @@
       }
     },
     "train_long_tailed": {
-      "n": 36465,
-      "sha256": "926a53b754a0b6e5f4dd9610cbeb15220c72fd4d2b8e4637c9de3eee946e0202",
+      "n": 40755,
+      "sha256": "439bb50e5de1e3f7b43d3772e8f55555fc5b2c38f90e515cb5e751066b4b3314",
       "class_counts": {
-        "World": 25500,
-        "Sports": 7650,
-        "Business": 2550,
-        "Sci/Tech": 765
+        "World": 28500,
+        "Sports": 8550,
+        "Business": 2850,
+        "Sci/Tech": 855
       }
     },
     "ptq_calib": {
       "n": 512,
-      "sha256": "b4080dedbc3c38ce0bc886ff1ea09e96a6a1cfce0c90e7f7b28bee7fc2d823e2",
+      "sha256": "563749041d00441652eb6c7af25225edd9c41a41c0c4f4a0d527d1694e338089",
       "class_counts": {
         "World": 128,
         "Sports": 128,
