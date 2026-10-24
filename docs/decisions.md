@@ -336,3 +336,44 @@ question; RQ1's instrument is the one that comes up short.
 class with 28,500 training examples against 0.1358 for the class with 855, a
 factor of sixteen across seeds. That is an effect of imbalance rather than of
 quantisation, and it holds before any compression is applied.
+
+## 24 October 2026 — the complete grid, and a result that does not depend on the corpus
+
+Ten runs: two variants, five seeds, DistilBERT, three precisions. Paired
+within-seed changes from FP32, two-sided t on 4 df, critical value 2.776.
+
+| | balanced | | long-tailed | |
+|---|---|---|---|---|
+| | INT8 | INT4 | INT8 | INT4 |
+| macro-F1 | **-0.0019** t=-5.44 | -0.0000 | **-0.0242** t=-4.53 | -0.0013 |
+| ECE | -0.0027 t=-1.43 | -0.0002 | -0.0029 t=-0.68 | +0.0006 |
+| coverage @95% | **-0.33pp** t=-3.13 | -0.06pp | **-8.12pp** t=-8.34 | -0.74pp |
+| coverage @98% | **-2.11pp** t=-3.69 | -0.09pp | **-11.19pp** t=-13.02 | -0.64pp |
+
+Three things hold across every cell.
+
+**Expected calibration error never detects the effect.** Not on the balanced
+split, not on the long-tailed one, at neither precision. Every ECE t-statistic
+is below 1.5 and the signs are mixed. A study measuring only ECE would conclude
+that quantisation is harmless here.
+
+**Coverage at a fixed precision target always detects INT8.** Significant in
+both variants at both targets, with the same sign in all five seeds every
+time, and the effect grows as the promise tightens: on the long-tailed split
+2.1 points of coverage at a 95 per cent target become 11.2 at 98 per cent.
+
+**The effect is not an artefact of imbalance.** It is twenty-five times larger
+on the long-tailed split, but it is present and significant on the balanced one
+too. Imbalance amplifies it; it does not create it.
+
+**INT4 is benign throughout**, which is worth stating plainly because it
+inverts the usual expectation. Weight-only block-wise INT4 preserved selective
+behaviour in every condition tested, while static INT8 did not. For a
+practitioner the actionable form is: the bit width is not what determines the
+risk, the quantisation scheme is.
+
+The thesis claim is therefore narrower and better evidenced than the one the
+outline set out with. Not that quantisation degrades confidence calibration,
+which this data does not support, but that **it degrades selective-prediction
+behaviour in a way the standard calibration metric cannot see**, and that the
+degradation tracks the quantisation scheme rather than the bit width.
