@@ -1,25 +1,100 @@
 [
   {
     "variant": "balanced",
-    "seed": 0,
+    "seed": 1,
     "model_name": "distilbert-base-uncased",
     "max_length": 128,
     "epochs": 2,
     "n_train": 114000,
     "device": "cuda",
-    "train_seconds": 390.7,
+    "train_seconds": 411.9,
     "smoke": false,
     "artefacts": {
       "fp32": {
-        "path": "balanced_seed0\\fp32.onnx",
+        "path": "balanced_seed1\\fp32.onnx",
         "size_mb": 256.16
       },
       "int8": {
-        "path": "balanced_seed0\\int8.onnx",
+        "path": "balanced_seed1\\int8.onnx",
         "size_mb": 133.08
       },
       "int4": {
-        "path": "balanced_seed0\\int4.onnx",
+        "path": "balanced_seed1\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "balanced",
+    "seed": 2,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 114000,
+    "device": "cuda",
+    "train_seconds": 391.4,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "balanced_seed2\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "balanced_seed2\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "balanced_seed2\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "balanced",
+    "seed": 3,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 114000,
+    "device": "cuda",
+    "train_seconds": 395.9,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "balanced_seed3\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "balanced_seed3\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "balanced_seed3\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "balanced",
+    "seed": 4,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 114000,
+    "device": "cuda",
+    "train_seconds": 395.0,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "balanced_seed4\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "balanced_seed4\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "balanced_seed4\\int4.onnx",
         "size_mb": 115.75
       }
     }
