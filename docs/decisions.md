@@ -293,3 +293,46 @@ opposite of what a reproducibility record is for.
 `newline="\n"` is now passed explicitly and a test asserts no carriage returns
 reach the file. Both machines must re-run `fetch_data.py` once so their
 manifests agree.
+
+## 24 October 2026 — five seeds overturn the INT4 claim and establish an INT8 one
+
+Seed 0 showed INT4 raising ECE by +0.0056 with a paired bootstrap interval
+excluding zero and the quantised model worse in all 4,000 resamples. Across
+five seeds that effect disappears: per-seed dECE of +0.0056, -0.0019, +0.0009,
++0.0016, -0.0032, mean +0.0006, t(4) = +0.39, signs mixed. **Seed 0 was an
+outlier and the earlier claim was wrong.**
+
+The error was methodological and worth recording. The bootstrap resamples test
+rows, so it measures how far a figure would move on a different sample of the
+same corpus. It says nothing about how far it would move had the model been
+trained again. Here training variability dominates: the seed-to-seed standard
+deviation of FP32 ECE alone is 0.0109, twice the effect seed 0 appeared to
+show. A tight bootstrap interval on one seed is not evidence about quantisation;
+it is evidence about that one model.
+
+**What does survive, and it is specific to INT8.**
+
+Macro-F1 falls by 0.0242 at INT8, t(4) = -4.53, negative in every seed. INT4
+costs 0.0013, t = -0.77, mixed.
+
+Coverage at a 95 per cent precision target, with the threshold fitted at FP32
+and carried across, falls by **8.12 percentage points at INT8**, sd 2.18,
+t(4) = -8.34, negative in all five seeds and ranging from -5.5 to -10.4. INT4
+loses 0.74 points and is not consistent.
+
+**Pooled ECE does not detect any of it.** The INT8 dECE is -0.0029 with
+t(4) = -0.68: by that instrument INT8 looks harmless, or even slightly
+improved, while it is discarding eight per cent of the inputs the full-precision
+model would have answered. INT8 loses accuracy and loses confidence at the same
+time, and in an averaged calibration figure the two cancel.
+
+That is the finding. Not that quantisation damages calibration as ECE measures
+it, but that **it damages selective-prediction behaviour in a way ECE cannot
+see**, which is precisely the case for reporting coverage at a fixed precision
+alongside calibration error rather than instead of it. RQ2 was the right
+question; RQ1's instrument is the one that comes up short.
+
+**RQ1(b) survives independently.** Per-class ECE at FP32 averages 0.0085 for the
+class with 28,500 training examples against 0.1358 for the class with 855, a
+factor of sixteen across seeds. That is an effect of imbalance rather than of
+quantisation, and it holds before any compression is applied.
