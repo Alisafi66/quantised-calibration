@@ -227,3 +227,50 @@ more rather than answering wrongly. El Allam and Hamlich report the opposite
 direction, undercoverage of the promise. Both are failures of transfer, and RQ2
 should expect either. Worth stating in the thesis that the threshold can fail
 by becoming too cautious as well as too permissive.
+
+## 24 October 2026 — first real transformer results: the effect is conditional
+
+DistilBERT, 2 epochs, AG News, seed 0, on the CUDA machine. Probabilities
+crossed back as npz; every figure below was recomputed on the laptop.
+
+**Balanced split: nothing happens.** Macro-F1 0.9452 at FP32 against 0.9446 at
+INT8 and 0.9461 at INT4; ECE 0.0092, 0.0100, 0.0109. A paired bootstrap on the
+difference, resampling the same test rows for both models, puts dECE at
++0.0009 [-0.0028, +0.0035] for INT8 and +0.0018 [-0.0015, +0.0043] for INT4.
+Both intervals contain zero. A threshold fitted at FP32 and carried across
+tracks to the fourth decimal at every target from 0.95 to 0.995. On a corpus
+this easy, with a model this well calibrated, there is nothing to damage.
+
+**Long-tailed split: the effect appears, and it is specific.**
+
+INT4 degrades calibration significantly while accuracy barely moves. ECE rises
+from 0.0460 to 0.0516, a paired difference of +0.0056 [+0.0024, +0.0091] with
+the quantised model worse in every one of 4,000 resamples, while macro-F1 falls
+only 0.0071. That is the thesis claim, measured: calibration damage out of
+proportion to accuracy loss.
+
+INT8 does not damage ECE, +0.0008 [-0.0050, +0.0041], but for an instructive
+reason. It loses more accuracy than INT4 (macro-F1 0.8421) *and* loses
+confidence (mean 0.8848 against 0.9053), and the two roughly cancel in a pooled
+calibration figure. Pooled ECE conceals it; the selective-prediction view does
+not.
+
+**RQ1(b) is answered.** Per-class ECE at FP32 runs 0.0039 for the class with
+28,500 training examples and 0.1148 for the class with 855, a factor of
+twenty-nine before any quantisation. Quantisation then adds to the rare class
+specifically: Sci/Tech reaches 0.1486 at INT8 and 0.1318 at INT4. The damage
+concentrates where the model saw least.
+
+**RQ2 is where INT8's loss surfaces.** A threshold fitted at FP32 for a 95 per
+cent target answers 60.5 per cent of inputs at FP32 and only 54.4 per cent at
+INT8, a loss of 6.2 points of coverage, while also delivering lower precision,
+0.9395 against 0.9472. At a 97 per cent target the coverage loss is 8.8 points,
+24 per cent in relative terms. At 99 per cent INT8 answers 9 inputs in 10,000
+against FP32's 647. The carried threshold fails in both directions at once: it
+delivers less precision than promised and abstains far more than intended.
+
+**A baseline that must be reported.** FP32 itself misses the target at every
+level, delivering 0.9472 against a 0.95 promise. That is the calibration-to-test
+generalisation gap, present without any quantisation. The quantisation effect
+sits on top of it, and a study that failed to report the FP32 transfer gap
+would attribute ordinary generalisation error to compression.
