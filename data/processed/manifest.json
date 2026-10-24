@@ -6,7 +6,7 @@
     "Business",
     "Sci/Tech"
   ],
-  "pinned_utc": "2026-10-23T23:53:55Z",
+  "pinned_utc": "2026-10-24T11:20:36Z",
   "seed": 0,
   "prob_calib_fraction": 0.05,
   "long_tail_fractions": [
@@ -19,7 +19,7 @@
   "splits": {
     "train_balanced": {
       "n": 114000,
-      "sha256": "2a5d373b3d23b7c5662f58d8cfa7376539d3a90ba9d97c0b41755117773e1a96",
+      "sha256": "53f45a2134cff177bf0bf6a90c5d870b3cea974ff8eebffc85402a72065daeb9",
       "class_counts": {
         "World": 28500,
         "Sports": 28500,
@@ -29,7 +29,7 @@
     },
     "prob_calib": {
       "n": 6000,
-      "sha256": "344025ee2e6b0a7b581366267339eb5af681df87babbf629a83af8129f939323",
+      "sha256": "e6b4f56900624101045309124a28ab20c4b76819bf30e754498b54288a0967ac",
       "class_counts": {
         "World": 1500,
         "Sports": 1500,
@@ -39,7 +39,7 @@
     },
     "test": {
       "n": 7600,
-      "sha256": "6725cf6c98b572b33d1e6ca2b0ad4db3bebb02214dee9ea3d0b52b3660457b3d",
+      "sha256": "896c59c12f49cf4cfdbd2c3296b5c532224be953c3b4560c8bbc114b8a1db411",
       "class_counts": {
         "World": 1900,
         "Sports": 1900,
@@ -49,7 +49,7 @@
     },
     "train_long_tailed": {
       "n": 40755,
-      "sha256": "d57af4248a00bd5ef2ef73b6855ac2feef6e12e95ef649aba99ca655744dc3be",
+      "sha256": "439bb50e5de1e3f7b43d3772e8f55555fc5b2c38f90e515cb5e751066b4b3314",
       "class_counts": {
         "World": 28500,
         "Sports": 8550,
@@ -59,7 +59,7 @@
     },
     "ptq_calib": {
       "n": 512,
-      "sha256": "db05f7404c9d6640fa2b939e1f9894b094288efbb85b9c09e307c86cbe91b72e",
+      "sha256": "563749041d00441652eb6c7af25225edd9c41a41c0c4f4a0d527d1694e338089",
       "class_counts": {
         "World": 128,
         "Sports": 128,
@@ -69,7 +69,7 @@
     }
   },
   "raw_sha256": {
-    "train": "55e3009821d6f35401fec0cad1665c836c5c6af3327934fec176d5d95eb0edf5",
-    "test": "6725cf6c98b572b33d1e6ca2b0ad4db3bebb02214dee9ea3d0b52b3660457b3d"
+    "train": "3953b10dda67289da360c2198d95256b82d5833569088f26f2117e328816a4f0",
+    "test": "896c59c12f49cf4cfdbd2c3296b5c532224be953c3b4560c8bbc114b8a1db411"
   }
 }

@@ -112,3 +112,20 @@ def test_manifest_hashes_match_the_files_on_disk():
     manifest = json.loads((PROC / "manifest.json").read_text())
     for name, meta in manifest["splits"].items():
         assert sha256_file(PROC / f"{name}.jsonl") == meta["sha256"], name
+
+
+def test_jsonl_uses_unix_newlines_on_every_platform():
+    """Text mode would write CRLF on Windows, changing the digest but not the data.
+
+    The splits are pinned by hash, so a terminator that depends on the operating
+    system makes the pin a statement about the machine rather than about the
+    corpus. This was observed in practice: the same snapshot hashed differently
+    on macOS and Windows.
+    """
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        p = pathlib.Path(d) / "x.jsonl"
+        write_jsonl(p, ["one", "two"], np.array([0, 1]))
+        raw = p.read_bytes()
+    assert b"\r\n" not in raw, "carriage returns would change the digest by platform"
+    assert raw.count(b"\n") == 2

@@ -274,3 +274,22 @@ level, delivering 0.9472 against a 0.95 promise. That is the calibration-to-test
 generalisation gap, present without any quantisation. The quantisation effect
 sits on top of it, and a study that failed to report the FP32 transfer gap
 would attribute ordinary generalisation error to compression.
+
+## 24 October 2026 — the snapshot hashed differently on Windows
+
+Running `fetch_data.py` on the CUDA machine produced a manifest whose digests
+disagreed with the laptop's for every split, including the raw snapshot, while
+every row count matched exactly. The cause was `write_jsonl` opening files in
+text mode: Python translates `\n` to the platform's convention, so Windows
+wrote CRLF and macOS wrote LF, one byte per line of difference across 114,000
+rows.
+
+The content was never in question and no result is affected: the same rows,
+the same labels, the same order, and the probabilities already produced remain
+valid. What was wrong was the claim the hash makes. A digest that changes with
+the operating system pins the machine rather than the corpus, which is the
+opposite of what a reproducibility record is for.
+
+`newline="\n"` is now passed explicitly and a test asserts no carriage returns
+reach the file. Both machines must re-run `fetch_data.py` once so their
+manifests agree.

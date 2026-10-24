@@ -59,9 +59,15 @@ def write_jsonl(path: pathlib.Path, text: list[str], label: np.ndarray) -> str:
     The hash is taken over this file rather than over whatever the download
     cache happens to hold, because only a fixed field order and a fixed row
     order produce the same digest twice.
+
+    `newline="\n"` is not cosmetic.  Python's text mode translates newlines to
+    the platform's convention, so the same rows written on Windows and on macOS
+    differ by one byte per line and hash differently while being identical in
+    content.  Pinning the terminator is what makes the digest a statement about
+    the data rather than about the machine that wrote it.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
         for t, y in zip(text, label):
             f.write(json.dumps({"text": t, "label": int(y)},
                                ensure_ascii=False, sort_keys=True) + "\n")
