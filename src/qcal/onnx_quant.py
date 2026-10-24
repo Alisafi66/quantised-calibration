@@ -83,28 +83,39 @@ def quantise_int4(fp32: pathlib.Path, out: pathlib.Path,
 
 
 def run_session(path: pathlib.Path, input_ids: np.ndarray, attention_mask: np.ndarray,
-                batch_size: int = 256) -> np.ndarray:
+                batch_size: int = 64) -> np.ndarray:
     """Logits from a graph, in batches, on CPU.
 
-    Inference dominates the wall clock here: fine-tuning a seed takes minutes
-    on a GPU while scoring the test and calibration splits at three precisions
-    takes longer, because ONNX Runtime runs on CPU and INT4 dequantises its
-    weights on every matrix multiplication.  Threads are therefore set to the
-    physical core count and the batch is large, which costs memory and buys
-    most of the difference.
+    Inference dominates the wall clock: fine-tuning a seed takes minutes on a
+    GPU while scoring the test and calibration splits at three precisions takes
+    longer, because ONNX Runtime runs on CPU and INT4 dequantises its weights
+    on every matrix multiplication.  Threads are set to the core count, which
+    is free.  The batch is not free: at sequence length 128 the GELU
+    intermediate alone is batch x 128 x 3072 floats, so a large batch exhausts
+    memory on some machines and not others.  Rather than pick a number that
+    suits one laptop, the batch halves and retries whenever allocation fails.
     """
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = os.cpu_count() or 4
     opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     opts.log_severity_level = 3
     sess = ort.InferenceSession(str(path), opts, providers=["CPUExecutionProvider"])
-    outs = []
-    for i in range(0, len(input_ids), batch_size):
-        outs.append(sess.run(None, {
-            "input_ids": input_ids[i:i + batch_size].astype(np.int64),
-            "attention_mask": attention_mask[i:i + batch_size].astype(np.int64),
-        })[0])
-    return np.concatenate(outs, axis=0)
+
+    while batch_size >= 4:
+        try:
+            outs = []
+            for i in range(0, len(input_ids), batch_size):
+                outs.append(sess.run(None, {
+                    "input_ids": input_ids[i:i + batch_size].astype(np.int64),
+                    "attention_mask": attention_mask[i:i + batch_size].astype(np.int64),
+                })[0])
+            return np.concatenate(outs, axis=0)
+        except Exception as exc:
+            if "allocation" not in str(exc).lower() and "memory" not in str(exc).lower():
+                raise
+            batch_size //= 2
+            print(f"    allocation failed, retrying at batch {batch_size}", flush=True)
+    raise RuntimeError("inference failed even at batch size 4")
 
 
 def model_size_mb(path: pathlib.Path) -> float:
