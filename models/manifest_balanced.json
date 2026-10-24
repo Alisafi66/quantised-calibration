@@ -1,0 +1,27 @@
+[
+  {
+    "variant": "balanced",
+    "seed": 0,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 114000,
+    "device": "cuda",
+    "train_seconds": 390.7,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "balanced_seed0\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "balanced_seed0\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "balanced_seed0\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  }
+]
