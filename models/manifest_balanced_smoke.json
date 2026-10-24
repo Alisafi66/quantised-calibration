@@ -6,21 +6,21 @@
     "max_length": 128,
     "epochs": 1,
     "n_train": 2000,
-    "device": "mps",
-    "train_seconds": 37.4,
+    "device": "cuda",
+    "train_seconds": 3.9,
     "smoke": true,
     "artefacts": {
       "fp32": {
-        "path": "balanced_seed0/fp32.onnx",
-        "size_mb": 256.2
+        "path": "balanced_seed0\\fp32.onnx",
+        "size_mb": 256.16
       },
       "int8": {
-        "path": "balanced_seed0/int8.onnx",
+        "path": "balanced_seed0\\int8.onnx",
         "size_mb": 133.08
       },
       "int4": {
-        "path": "balanced_seed0/int4.onnx",
-        "size_mb": 115.78
+        "path": "balanced_seed0\\int4.onnx",
+        "size_mb": 115.75
       }
     }
   }
