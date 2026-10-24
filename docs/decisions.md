@@ -377,3 +377,49 @@ outline set out with. Not that quantisation degrades confidence calibration,
 which this data does not support, but that **it degrades selective-prediction
 behaviour in a way the standard calibration metric cannot see**, and that the
 degradation tracks the quantisation scheme rather than the bit width.
+
+## 24 October 2026 — the mechanism: ranking, not calibration
+
+Four further analyses on the completed grid settle what is actually breaking.
+
+**The threshold keeps its precision promise.** Promised minus delivered at a
+95 per cent target is +0.19 pp at INT8 on the balanced split and +0.28 pp on
+the long-tailed one, against +0.16 and +0.21 at FP32. The shortfall is a
+calibration-to-test generalisation gap, and quantisation barely adds to it.
+Q2(a)'s premise, that the quantised model would deliver *less precision* than
+promised, is not what happens. It keeps the promise and pays in coverage.
+
+**Re-tuning the threshold does not recover the coverage.** Fitting a fresh
+threshold on the quantised model's own calibration split leaves long-tailed
+INT8 at -10.26 pp against FP32, t(4) = -3.48, slightly worse than the -8.12 pp
+without re-tuning. The threshold was never misplaced.
+
+**Nor can any threshold.** An oracle threshold, fitted on the test set itself,
+still loses 9.71 pp at long-tailed INT8 (t = -3.16) and 0.42 pp on the
+balanced split (t = -8.46). No choice of operating point recovers what was
+lost.
+
+**Because what was lost is ranking, not calibration.** AURC rises by 0.01009
+at long-tailed INT8, t(4) = +3.83: the model has become worse at ordering its
+own correctness. ECE is indifferent to ordering, which is precisely why it
+reports nothing. Calibration and discrimination are orthogonal, and selective
+prediction depends on the one quantisation damaged.
+
+**Temperature re-fitting confirms it, and answers Q3(a) ahead of schedule.**
+A single temperature is a monotone rescaling and cannot reorder anything. On
+long-tailed INT8 it improves ECE markedly, -0.0243 (t = -3.21), leaves AURC
+untouched, -0.0008 (t = -1.92), and leaves the coverage gap at -9.13 pp
+(t = -3.67) against -8.12 before. **It fixes the calibration and does not fix
+the problem.** The remedy the literature prescribes for miscalibration cannot
+help, because miscalibration is not what occurred.
+
+This yields a prediction for Q3(b): split conformal will restore the
+*validity* of the guarantee, since its coverage is distribution-free by
+construction, but it cannot restore efficiency, because it too consumes the
+damaged score ordering. Expect valid coverage purchased with larger prediction
+sets.
+
+**Q2(c) answered: no confidence signal is more robust.** Softmax, margin and
+entropy lose -8.12, -8.06 and -8.22 pp respectively at long-tailed INT8. They
+are three readings of the same damaged ordering, so the choice between them
+does not matter.
