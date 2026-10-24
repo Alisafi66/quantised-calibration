@@ -11,10 +11,16 @@ machine is required for fine-tuning alone.
 """
 from __future__ import annotations
 
+import logging
+import os
 import pathlib
 
 import numpy as np
 import onnxruntime as ort
+
+# the INT4 quantiser logs a line per node, several hundred per model and
+# several thousand across a seed sweep, which buries everything worth reading
+logging.getLogger("onnxruntime.quantization").setLevel(logging.WARNING)
 from onnxruntime.quantization import CalibrationDataReader, QuantType, quantize_static
 
 
@@ -77,9 +83,21 @@ def quantise_int4(fp32: pathlib.Path, out: pathlib.Path,
 
 
 def run_session(path: pathlib.Path, input_ids: np.ndarray, attention_mask: np.ndarray,
-                batch_size: int = 64) -> np.ndarray:
-    """Logits from a graph, in batches, on CPU."""
-    sess = ort.InferenceSession(str(path), providers=["CPUExecutionProvider"])
+                batch_size: int = 256) -> np.ndarray:
+    """Logits from a graph, in batches, on CPU.
+
+    Inference dominates the wall clock here: fine-tuning a seed takes minutes
+    on a GPU while scoring the test and calibration splits at three precisions
+    takes longer, because ONNX Runtime runs on CPU and INT4 dequantises its
+    weights on every matrix multiplication.  Threads are therefore set to the
+    physical core count and the batch is large, which costs memory and buys
+    most of the difference.
+    """
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = os.cpu_count() or 4
+    opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+    opts.log_severity_level = 3
+    sess = ort.InferenceSession(str(path), opts, providers=["CPUExecutionProvider"])
     outs = []
     for i in range(0, len(input_ids), batch_size):
         outs.append(sess.run(None, {
