@@ -1,7 +1,7 @@
 """Calibration and selective-prediction metrics.
 
 Implemented here rather than imported so that the binning scheme and the
-definition of "delivered precision" are explicit and testable — both are
+definition of "delivered precision" are explicit and testable. Both are
 reported in the dissertation and both are sensitive to how they are computed.
 """
 from __future__ import annotations

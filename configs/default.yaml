@@ -1,6 +1,5 @@
 # Every run is fully described by one config file. Nothing is hard-coded.
-# Revised 17 Oct 2026 after supervisory feedback: one corpus, two remedies,
-# accuracy observed rather than filtered, device overhead reported as a ratio.
+# One corpus, three precisions, two model families, two remedies.
 seed_list: [0, 1, 2, 3, 4]        # five seeds per configuration
 
 dataset:
@@ -27,7 +26,8 @@ training:                          # the transformer only; the linear model has 
 
 quantisation:
   precisions: [fp32, int8, int4]   # fp32 is the control condition
-  backend: onnxruntime             # int4 goes via bitsandbytes on CUDA
+  backend: onnxruntime             # int8 static on MatMul; int4 weight-only, block 128
+  int8_op_types: [MatMul]          # quantising every operator collapses the model
   calibration_samples: 512         # NOTE: PTQ calibration SET, not probability calibration
 
 evaluation:

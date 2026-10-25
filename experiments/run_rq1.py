@@ -1,4 +1,4 @@
-"""RQ1 — does post-training quantisation distort confidence, apart from accuracy?
+"""RQ1: does post-training quantisation distort confidence, apart from accuracy?
 
 Every cell records macro-F1 beside every calibration figure. Accuracy is an
 observed covariate here, never a filter: a precision whose accuracy falls

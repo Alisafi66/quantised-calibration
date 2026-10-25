@@ -1,4 +1,4 @@
-"""RQ2 — see README. Entry point; implementation to follow."""
+"""RQ2: promised against delivered precision. See README. Implementation to follow."""
 import argparse, yaml
 
 

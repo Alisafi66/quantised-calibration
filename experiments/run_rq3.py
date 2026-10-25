@@ -1,4 +1,4 @@
-"""RQ3 — see README. Entry point; implementation to follow."""
+"""RQ3: remedies and their on-device cost. See README. Implementation to follow."""
 import argparse, yaml
 
 

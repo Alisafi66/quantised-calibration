@@ -14,10 +14,10 @@ quantisation, evaluation, analysis and writing.
 | Evaluation, analysis, figures | MacBook | no GPU involved |
 | Device measurement | Android handset | RQ3 |
 
-`bitsandbytes` is **not** required. The outline's earlier claim that INT4 needs
-CUDA was wrong: ONNX Runtime's `MatMulNBitsQuantizer` does weight-only
-block-wise INT4 on CPU, and it is the better choice anyway because ONNX Runtime
-Mobile is what the handset will run. One toolchain from desktop to device.
+`bitsandbytes` is **not** required. ONNX Runtime's `MatMulNBitsQuantizer`
+performs weight-only block-wise INT4 on CPU, and it is the preferable route in
+any case: ONNX Runtime Mobile is what the handset runs, so quantising through
+the same runtime gives one toolchain from desktop to device.
 
 ## Setup on the workstation
 
