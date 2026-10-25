@@ -252,11 +252,13 @@ loses 9.71 points at long-tailed INT8 and 0.42 on the balanced split.
 INT8, t(4) = +3.83. The model orders its own correctness less well. ECE is
 indifferent to ordering, which is why it reports nothing.
 
-**Temperature scaling confirms this.** A single temperature is a monotone
-rescaling and cannot reorder anything. On long-tailed INT8 it improves ECE
-markedly, -0.0243 with t = -3.21, leaves AURC untouched at -0.0008, and leaves
-the coverage gap at -9.13 points. It repairs the calibration and does not
-repair the failure.
+**Temperature scaling confirms this.** A single temperature rescales every
+logit vector by the same scalar. It can shift the ranking slightly, since
+examples whose logits are spread differently respond differently, but it
+cannot restructure it. On long-tailed INT8 it improves ECE markedly, -0.0243
+with t = -3.21, moves AURC by -0.0008 against the +0.0101 that quantisation
+introduced, and leaves the coverage gap at -9.13 points. It repairs the
+calibration and does not repair the failure.
 
 This predicts the behaviour of split conformal prediction: it should restore
 the validity of the guarantee, since its coverage is distribution-free by
