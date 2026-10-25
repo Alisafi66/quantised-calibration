@@ -6,6 +6,9 @@ data/processed/*
 !data/processed/manifest.json
 results/raw/*
 !results/raw/.gitkeep
+# figures are small, reproducible and belong with the text that cites them
+!results/figures/*.pdf
+!results/figures/*.png
 *.onnx
 *.tflite
 checkpoints/
