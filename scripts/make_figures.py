@@ -11,8 +11,6 @@ from __future__ import annotations
 import pathlib
 import sys
 
-import matplotlib
-matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import minimize_scalar
@@ -73,16 +71,16 @@ def fit_temperature(prob: np.ndarray, y: np.ndarray) -> float:
     return float(np.exp(minimize_scalar(nll, bounds=(-2, 2), method="bounded").x))
 
 
-def save(fig, name: str) -> None:
+def save(fig, name: str):
+    """Write the figure and hand it back, so a notebook can display it inline."""
     OUT.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
         fig.savefig(OUT / f"{name}.{ext}")
-    plt.close(fig)
-    print(f"  {name}")
+    return fig
 
 
 # --------------------------------------------------------------------------
-def fig_what_ece_misses() -> None:
+def fig_what_ece_misses():
     """The headline: the same runs, measured two ways, giving opposite verdicts."""
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=False)
     jitter = {"int8": -0.08, "int4": 0.08}
@@ -123,10 +121,10 @@ def fig_what_ece_misses() -> None:
     axes[1].legend(handles=handles, loc="lower left", fontsize=8)
     fig.suptitle("Each point is one seed, measured against FP32 trained from the same seed",
                  fontsize=8, color="#666666", y=1.04)
-    save(fig, "01_what_ece_misses")
+    return save(fig, "01_what_ece_misses")
 
 
-def fig_risk_coverage() -> None:
+def fig_risk_coverage():
     """Why no threshold can help: the whole curve moves, not the operating point."""
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=True)
     for ax, variant in zip(axes, VARIANTS):
@@ -149,10 +147,10 @@ def fig_risk_coverage() -> None:
     axes[0].set_ylabel("selective risk (%)")
     fig.suptitle("Risk against coverage, mean of five seeds, shaded 10th to 90th percentile",
                  fontsize=8, color="#666666", y=1.04)
-    save(fig, "02_risk_coverage")
+    return save(fig, "02_risk_coverage")
 
 
-def fig_coverage_by_target() -> None:
+def fig_coverage_by_target():
     """The gap widens as the promise tightens."""
     targets = [0.90, 0.95, 0.97, 0.98, 0.99]
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=False)
@@ -179,10 +177,10 @@ def fig_coverage_by_target() -> None:
     axes[0].legend(loc="lower left", fontsize=8)
     fig.suptitle("Threshold fitted on the FP32 calibration split and carried across unchanged",
                  fontsize=8, color="#666666", y=1.04)
-    save(fig, "03_coverage_by_target")
+    return save(fig, "03_coverage_by_target")
 
 
-def fig_per_class() -> None:
+def fig_per_class():
     """Calibration error against how often the model saw the class."""
     sizes = {"balanced": [28500] * 4, "long_tailed": [28500, 8550, 2850, 855]}
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=True)
@@ -207,10 +205,10 @@ def fig_per_class() -> None:
                          color="#777777", ha="center", va="bottom")
     fig.suptitle("Per-class calibration error, mean of five seeds",
                  fontsize=8, color="#666666", y=1.04)
-    save(fig, "04_per_class_ece")
+    return save(fig, "04_per_class_ece")
 
 
-def fig_temperature() -> None:
+def fig_temperature():
     """Temperature scaling repairs the calibration and not the failure."""
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9))
     variant = "long_tailed"
@@ -258,16 +256,21 @@ def fig_temperature() -> None:
     axes[0].legend(loc="upper right", fontsize=8)
     fig.suptitle("Long-tailed split, temperature fitted on each model's own calibration split",
                  fontsize=8, color="#666666", y=1.04)
-    save(fig, "05_temperature_scaling")
+    return save(fig, "05_temperature_scaling")
 
 
 if __name__ == "__main__":
+    import matplotlib
+    matplotlib.use("Agg")
     if not PROBS.exists():
         raise SystemExit("no probability files; run experiments/train_transformer.py first")
     print("writing figures to", OUT)
-    fig_what_ece_misses()
-    fig_risk_coverage()
-    fig_coverage_by_target()
-    fig_per_class()
-    fig_temperature()
+    for name, builder in (("01_what_ece_misses", fig_what_ece_misses),
+                          ("02_risk_coverage", fig_risk_coverage),
+                          ("03_coverage_by_target", fig_coverage_by_target),
+                          ("04_per_class_ece", fig_per_class),
+                          ("05_temperature_scaling", fig_temperature)):
+        builder()
+        plt.close("all")
+        print(" ", name)
     print("done")
