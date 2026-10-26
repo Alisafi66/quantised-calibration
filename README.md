@@ -1,4 +1,6 @@
-# Selective prediction under post-training quantisation
+# Optimising Confidence Calibration in Quantised On-Device Classifiers
+
+Restoring selective-prediction guarantees under INT8 and INT4 compression.
 
 Research code for an MSc dissertation (M599, 25 ECTS) at Gisma University of
 Applied Sciences.
