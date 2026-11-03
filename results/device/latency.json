@@ -1,0 +1,74 @@
+{
+  "device": {
+    "model": "Samsung Galaxy Tab S7 FE (SM-T733)",
+    "soc": "Qualcomm SM7325",
+    "cpu": "4 x 1.80 GHz + 4 x 2.40 GHz, arm64-v8a",
+    "ram_gb": 5.25,
+    "android": "14 (API 34)",
+    "governor": "schedutil",
+    "power": "mains, USB connected"
+  },
+  "protocol": {
+    "runtime": "ONNX Runtime 1.20.0 (Android, arm64-v8a)",
+    "batch": 1,
+    "intra_op_threads": 1,
+    "warmup_iterations": 20,
+    "measured_iterations": 200,
+    "rounds": 5,
+    "interleaved": true,
+    "sequence_length": 128,
+    "models": "balanced seed 0; latency depends on graph structure, not weight values"
+  },
+  "peak_rss_mb": {
+    "fp32": 455.5625,
+    "int8": 245.6875,
+    "int4": 226.6953125
+  },
+  "size_on_disk_mb": {
+    "fp32": 256.19564628601074,
+    "int8": 133.08023738861084,
+    "int4": 115.77949523925781
+  },
+  "runs": [
+    {
+      "run": 1,
+      "temperature_c_before": 28.7,
+      "temperature_c_after": 29.3,
+      "fp32": {
+        "p50_ms": 338.8343,
+        "p95_ms": 340.1237,
+        "mean_ms": 338.9275
+      },
+      "int8": {
+        "p50_ms": 126.6999,
+        "p95_ms": 127.1741,
+        "mean_ms": 126.7385
+      },
+      "int4": {
+        "p50_ms": 349.1485,
+        "p95_ms": 350.8873,
+        "mean_ms": 349.3375
+      }
+    },
+    {
+      "run": 2,
+      "temperature_c_before": 29.4,
+      "temperature_c_after": 29.9,
+      "fp32": {
+        "p50_ms": 340.1908,
+        "p95_ms": 341.6922,
+        "mean_ms": 340.8814
+      },
+      "int8": {
+        "p50_ms": 125.8479,
+        "p95_ms": 126.4479,
+        "mean_ms": 125.9188
+      },
+      "int4": {
+        "p50_ms": 349.4003,
+        "p95_ms": 351.6472,
+        "mean_ms": 349.8883
+      }
+    }
+  ]
+}

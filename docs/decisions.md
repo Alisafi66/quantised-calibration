@@ -390,3 +390,86 @@ and Hamlich (2026) report for binary electrocardiogram classification on a
 microcontroller, where Mondrian conditioning cut their class-coverage gap from
 3.06 to 0.12 percentage points. The effect here is present at full precision,
 so it is a property of imbalance rather than of quantisation.
+
+---
+
+## 10. On-device measurement
+
+### Device
+
+Samsung Galaxy Tab S7 FE (SM-T733), Wi-Fi. Qualcomm SM7325, eight cores in two
+clusters at 1.80 and 2.40 GHz, arm64-v8a, 5.25 GB RAM, Android 14 (API 34),
+`schedutil` governor. Measured on mains power over USB.
+
+It is a tablet rather than a phone, which matters: tablets have more thermal
+headroom, so these absolute latencies are optimistic relative to a phone under
+sustained load. The ratios should transfer; the milliseconds should not be read
+as a phone figure. That is the reason the primary measure is relative overhead.
+
+### Harness
+
+`device/bench.cpp`, cross-compiled for arm64-v8a with NDK 28.2 against ONNX
+Runtime 1.20.0, pushed to `/data/local/tmp` and run through adb. Batch size 1,
+sequence length 128, one intra-op thread, 20 discarded warm-up iterations and
+200 measured iterations per condition.
+
+**Conditions are interleaved inside a single process.** Running FP32 to
+completion and then INT8 would confound precision with thermal state, since
+whichever ran second would inherit a warmer device and a governor that had
+already responded to sustained load. Round-robin ordering across five rounds
+spreads any drift equally. `device/run_benchmark.sh` records the battery
+temperature either side of the run so that a drifting measurement can be
+identified rather than silently averaged in.
+
+Latency depends on graph structure rather than on weight values, so a single
+seed suffices and the balanced seed-0 graphs were used.
+
+### Results
+
+Mean of two independent runs, Samsung Galaxy Tab S7 FE:
+
+| | p50 latency | relative to FP32 | peak RSS | on disk |
+|---|---|---|---|---|
+| FP32 | 339.5 ms | 1.00x | 456 MB | 256 MB |
+| INT8 | 126.3 ms | **2.69x faster** | 246 MB | 133 MB |
+| INT4 | 349.3 ms | **0.97x, slower** | 227 MB | 116 MB |
+
+Run-to-run spread in p50 was 0.07 to 0.67 per cent and the device warmed 1.2 C
+across both runs, from 28.7 to 29.9 C. The protocol produced measurements in
+which the differences between precisions exceed the measurement noise by three
+orders of magnitude.
+
+### What the measurement adds to the argument
+
+Placed beside the capability results, the numbers form a deployment decision
+table rather than an overhead report:
+
+| | speed | memory | selective coverage |
+|---|---|---|---|
+| INT8 | 2.69x faster | 46 per cent less | **8.12 points lost** |
+| INT4 | 3 per cent slower | 50 per cent less | no significant loss |
+
+**INT4's latency result is the unexpected one.** Weight-only quantisation
+halves the model on disk and in memory, but every matrix multiplication
+dequantises its weights before use, and on this CPU that overhead cancels the
+memory-bandwidth saving almost exactly. The compression is real and the speed
+gain is not.
+
+The practical guidance follows directly. Where throughput is the constraint,
+INT8 delivers it and silently removes eight points of the model's ability to
+know when to abstain. Where only model size is constrained, weight-only INT4
+achieves a comparable reduction at no measurable cost to that ability. Neither
+consequence is visible in an accuracy check, and neither is visible in expected
+calibration error.
+
+### Q3(c) as answered
+
+The question as written asked what overhead each remedy adds. On this evidence
+that is close to a non-question: temperature scaling is a single division, and
+conformal set construction is a threshold comparison that El Allam and Hamlich
+(2026) measured at under 0.1 ms on a microcontroller far weaker than this
+device. Both are negligible against a 126 ms inference.
+
+The measurement that carries weight is the one above: what the compression buys
+set against what it costs. That reframing follows from the RQ1 and RQ2 results
+rather than restating a known quantity.

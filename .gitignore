@@ -28,3 +28,6 @@ venv/
 .DS_Store
 .vscode/
 .cursor/
+# the ORT Android library is 17 MB and fetched from Maven; see device/README
+device/ort/
+device/bench

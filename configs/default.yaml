@@ -46,7 +46,11 @@ evaluation:
 
 device:
   enabled: false                   # set true when running on the Android device
-  name: null                       # exact handset model, recorded before any run
+  model: Samsung Galaxy Tab S7 FE (SM-T733), Wi-Fi
+  soc: Qualcomm SM7325, 4 x 1.80 GHz + 4 x 2.40 GHz, arm64-v8a
+  ram_gb: 5.25
+  android: "14 (API 34)"
+  governor: schedutil             # recorded because it affects timing stability
   runtime: onnxruntime-mobile
   primary_measure: relative_overhead   # ratio against FP32 on the same handset
   latency_percentiles: [50, 95]        # absolute, secondary, hardware-specific

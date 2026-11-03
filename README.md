@@ -29,7 +29,7 @@ within the device's latency and memory budget?
 | RQ1 and RQ2 analysis | complete |
 | Temperature re-fitting | complete |
 | Split conformal prediction, pooled and Mondrian | complete |
-| Device measurement | not started |
+| Device measurement, Galaxy Tab S7 FE | complete |
 
 Headline result and the full statistical treatment are in
 [`docs/decisions.md`](docs/decisions.md).
@@ -75,7 +75,8 @@ moves between machines; the 256 MB graphs stay where they were produced.
 ## Layout
 
 ```
-src/qcal/        data loading and splits, models, quantisation, metrics
+src/qcal/        data loading and splits, models, quantisation, metrics, conformal
+device/          arm64 benchmark harness and the adb runner
 experiments/     one script per research question, plus transformer training
 configs/         the full specification of a run: seeds, precisions, targets
 results/probs/   predicted probabilities, the cross-machine artefact
