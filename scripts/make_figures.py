@@ -82,7 +82,6 @@ def save(fig, name: str):
     return fig
 
 
-# --------------------------------------------------------------------------
 def fig_what_ece_misses():
     """The headline: the same runs, measured two ways, giving opposite verdicts."""
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9), sharey=False)

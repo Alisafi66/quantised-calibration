@@ -74,7 +74,7 @@ def test_jsonl_roundtrip_and_stable_hash(tmp_path):
     assert np.array_equal(back.label, label)
 
 
-# --- guards on the real artefacts, skipped until the snapshot is pinned -----
+# Guards on the real artefacts, skipped until a snapshot has been pinned.
 
 # the manifest is committed but the splits are not, so a fresh clone has one
 # without the other; gate on a split file, which is what these tests actually read

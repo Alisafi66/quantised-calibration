@@ -36,7 +36,7 @@ def split(probs, labels, n_cal=2000):
     return probs[:n_cal], labels[:n_cal], probs[n_cal:], labels[n_cal:]
 
 
-# --- the quantile ---------------------------------------------------------
+# The quantile
 
 def test_quantile_is_monotone_in_alpha():
     scores = np.linspace(0, 1, 500)
@@ -49,7 +49,7 @@ def test_quantile_is_infinite_when_the_sample_is_too_small():
     assert conformal_quantile(np.linspace(0, 1, 5), 0.01) == float("inf")
 
 
-# --- the guarantee --------------------------------------------------------
+# The coverage guarantee
 
 @pytest.mark.parametrize("alpha", [0.05, 0.10, 0.20])
 @pytest.mark.parametrize("score", ["lac", "aps"])
@@ -82,7 +82,7 @@ def test_aps_never_returns_an_empty_set():
     assert evaluate_sets(sets, test_y)["empty_rate"] == 0.0
 
 
-# --- Mondrian -------------------------------------------------------------
+# Class-conditional calibration
 
 def test_mondrian_lifts_coverage_on_a_class_the_pooled_form_underserves():
     """A pooled threshold can leave one class well below nominal.
@@ -107,7 +107,7 @@ def test_mondrian_lifts_coverage_on_a_class_the_pooled_form_underserves():
     assert min(mondrian.values()) >= (1 - alpha) - 0.04, mondrian
 
 
-# --- reporting ------------------------------------------------------------
+# Reporting
 
 def test_evaluate_sets_reports_what_it_claims():
     sets = np.array([[1, 0, 0, 0],      # singleton, correct
