@@ -17,6 +17,9 @@ from scipy.optimize import minimize_scalar
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 from qcal.data import AG_NEWS_CLASSES  # noqa: E402
+from qcal.conformal import (class_conditional_coverage,  # noqa: E402
+                            conformal_quantile, evaluate_sets,
+                            lac_scores, mondrian_quantiles, predict_sets)
 from qcal.metrics import (aurc, coverage_and_precision,  # noqa: E402
                           expected_calibration_error, per_class_ece,
                           risk_coverage_curve, threshold_for_target_precision)
@@ -259,6 +262,56 @@ def fig_temperature():
     return save(fig, "05_temperature_scaling")
 
 
+def fig_conformal():
+    """Conformal keeps its promise and pays for it in usefulness."""
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9))
+    alpha = 0.05
+
+    # left: validity holds everywhere, efficiency does not
+    width = 0.35
+    for i, precision in enumerate(PRECISIONS):
+        cov, sing = [], []
+        for seed in SEEDS:
+            test, cal = load("long_tailed", seed)
+            q = conformal_quantile(lac_scores(cal[precision], cal["label"]), alpha)
+            m = evaluate_sets(predict_sets(test[precision], q), test["label"])
+            cov.append(100 * m["coverage"]); sing.append(100 * m["singleton_rate"])
+        axes[0].bar(i - width / 2, np.mean(cov), width, color=COLOUR[precision],
+                    alpha=0.45, label="coverage" if i == 0 else None)
+        axes[0].bar(i + width / 2, np.mean(sing), width, color=COLOUR[precision],
+                    label="answered with one label" if i == 0 else None)
+    axes[0].axhline(100 * (1 - alpha), color="#444444", linewidth=0.9, linestyle="--")
+    axes[0].annotate("95% target", (1.9, 100 * (1 - alpha) + 1), fontsize=7.5,
+                     color="#444444", ha="right")
+    axes[0].set_xticks(range(3)); axes[0].set_xticklabels([LABEL[p] for p in PRECISIONS])
+    axes[0].set_ylabel("per cent"); axes[0].set_ylim(0, 108)
+    axes[0].set_title("Validity is kept, usefulness is not", loc="left")
+    axes[0].legend(loc="lower left", fontsize=7.5)
+
+    # right: pooled calibration conceals the rare class
+    sizes = [28500, 8550, 2850, 855]
+    for form, marker, style in (("pooled", "o", "-"), ("Mondrian", "s", "--")):
+        per_class = []
+        for seed in SEEDS:
+            test, cal = load("long_tailed", seed)
+            sc = lac_scores(cal["int8"], cal["label"])
+            q = (conformal_quantile(sc, alpha) if form == "pooled"
+                 else mondrian_quantiles(sc, cal["label"], alpha, 4))
+            cc = class_conditional_coverage(predict_sets(test["int8"], q), test["label"], 4)
+            per_class.append([100 * cc[c] for c in range(4)])
+        axes[1].plot(sizes, np.mean(per_class, axis=0), marker + style,
+                     color="#C44E52" if form == "pooled" else "#4C72B0",
+                     markersize=4, linewidth=1.3, label=form)
+    axes[1].axhline(100 * (1 - alpha), color="#444444", linewidth=0.9, linestyle=":")
+    axes[1].set_xscale("log"); axes[1].set_xlabel("training examples in the class")
+    axes[1].set_ylabel("coverage within the class (%)")
+    axes[1].set_title("Pooled calibration conceals the rare class", loc="left")
+    axes[1].legend(loc="lower right", fontsize=8)
+    fig.suptitle("Split conformal prediction at INT8 on the long-tailed split, five seeds",
+                 fontsize=8, color="#666666", y=1.04)
+    return save(fig, "06_conformal")
+
+
 if __name__ == "__main__":
     import matplotlib
     matplotlib.use("Agg")
@@ -269,7 +322,8 @@ if __name__ == "__main__":
                           ("02_risk_coverage", fig_risk_coverage),
                           ("03_coverage_by_target", fig_coverage_by_target),
                           ("04_per_class_ece", fig_per_class),
-                          ("05_temperature_scaling", fig_temperature)):
+                          ("05_temperature_scaling", fig_temperature),
+                          ("06_conformal", fig_conformal)):
         builder()
         plt.close("all")
         print(" ", name)

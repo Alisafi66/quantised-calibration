@@ -28,7 +28,7 @@ within the device's latency and memory budget?
 | Transformer, ONNX INT8 and INT4, 10 runs | complete |
 | RQ1 and RQ2 analysis | complete |
 | Temperature re-fitting | complete |
-| Split conformal prediction | not started |
+| Split conformal prediction, pooled and Mondrian | complete |
 | Device measurement | not started |
 
 Headline result and the full statistical treatment are in

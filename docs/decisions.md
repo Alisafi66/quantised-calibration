@@ -321,3 +321,72 @@ through 200,000 rounds of backtracking on a clean install before it failed.
   the experiment scripts.
 - Device measurement has not begun and the handset model is unspecified.
 - Near-duplicate detection within AG News remains open.
+
+---
+
+## 9. Split conformal prediction
+
+`src/qcal/conformal.py`, with the coverage guarantee tested rather than
+assumed in `tests/test_conformal.py`. Two score functions: LAC, which scores a
+label by one minus its predicted probability, and APS, which accumulates sorted
+probability mass down to the true label. Both are available in a Mondrian
+(class-conditional) form. The quantile carries the finite-sample correction
+`ceil((n+1)(1-alpha))/n`, without which the guarantee holds only
+asymptotically, and returns infinity when the calibration sample is too small
+for any finite threshold to achieve the target.
+
+### Validity is restored at every precision
+
+At alpha = 0.05, calibrating on each model's own held-out split, empirical
+coverage on the long-tailed test set is 0.9487 at FP32, 0.9480 at INT8 and
+0.9484 at INT4. The distribution-free guarantee does exactly what it promises,
+and quantisation does not disturb it.
+
+### Efficiency is not, and the loss is the same size as before
+
+| Long-tailed, LAC, alpha = 0.05 | set size | answered with one label |
+|---|---|---|
+| FP32 | 1.3293 | 71.71% |
+| INT8 | 1.4553 | 63.73% |
+| INT4 | 1.3444 | 70.72% |
+
+INT8 loses 7.98 percentage points of singleton rate, t(4) = -7.09, with the
+same sign in every seed. Under APS the loss is 5.83 points, t(4) = -5.83.
+
+That figure is worth comparing against the thresholded abstention rule, which
+lost 8.12 points of coverage under the same conditions. **The two are the same
+quantity measured in different currencies.** Conformal prediction converts a
+validity failure into an efficiency failure: the guarantee is met, and the
+number of inputs the system can resolve to a single label falls by almost
+exactly what the threshold lost. The capability is not recovered, only
+re-denominated.
+
+This answers Q3(b) as posed. Split conformal does recover the target coverage
+where threshold re-tuning fails, and it does so by returning larger sets rather
+than by restoring the model's ability to discriminate.
+
+### Pooled calibration conceals the rare class, at every precision
+
+Class-conditional coverage under a pooled threshold at a nominal 95 per cent,
+long-tailed split:
+
+| | World (28,500) | Sports (8,550) | Business (2,850) | Sci/Tech (855) | spread |
+|---|---|---|---|---|---|
+| pooled, FP32 | 0.9954 | 0.9909 | 0.9403 | **0.8682** | 12.7 pp |
+| pooled, INT8 | 0.9977 | 0.9911 | 0.9425 | **0.8608** | 13.7 pp |
+| Mondrian, INT8 | 0.9472 | 0.9498 | 0.9522 | 0.9436 | 0.9 pp |
+
+The rarest class is covered 86.1 per cent of the time against a 95 per cent
+promise, while the most common is covered 99.8 per cent. A pooled figure of
+0.948 conceals both.
+
+Mondrian calibration removes the gap and **also reduces the average set size**,
+from 1.455 to 1.242 at INT8. That is not a trade: pooled calibration wastes set
+size over-covering classes that need no help, and spending exactly the error
+budget in each class is both fairer and tighter.
+
+This reproduces independently, in four-class text classification, what El Allam
+and Hamlich (2026) report for binary electrocardiogram classification on a
+microcontroller, where Mondrian conditioning cut their class-coverage gap from
+3.06 to 0.12 percentage points. The effect here is present at full precision,
+so it is a property of imbalance rather than of quantisation.
