@@ -39,9 +39,24 @@ MODELS = pathlib.Path("models")
 PROBS = pathlib.Path("results/probs")
 
 
+# The two original variants name their split differently from the sweep
+# variants, which are written as train_<variant>.jsonl by
+# scripts/make_imbalance_sweep.py.
+LEGACY = {"balanced": "train_balanced", "long_tailed": "train_long_tailed"}
+
+
+def resolve_split(variant: str) -> str:
+    name = LEGACY.get(variant, f"train_{variant}")
+    if not (PROC / f"{name}.jsonl").exists():
+        raise SystemExit(
+            f"no split {name}.jsonl for variant {variant!r}. "
+            f"Run scripts/make_imbalance_sweep.py to derive the sweep splits.")
+    return name
+
+
 def build_one(cfg: dict, variant: str, seed: int, smoke: bool) -> dict:
     """Train, export and quantise a single seed. Returns a record of what it made."""
-    train_name = "train_long_tailed" if variant == "long_tailed" else "train_balanced"
+    train_name = resolve_split(variant)
     train = read_jsonl(PROC / f"{train_name}.jsonl", train_name)
     ptq = read_jsonl(PROC / "ptq_calib.jsonl", "ptq_calib")
 
@@ -122,7 +137,9 @@ def emit_predictions(model, graphs: dict[str, pathlib.Path], variant: str, seed:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default="configs/default.yaml")
-    ap.add_argument("--variant", choices=["balanced", "long_tailed"], default="balanced")
+    ap.add_argument("--variant", default="balanced",
+                    help="balanced, long_tailed, or a sweep "
+                         "variant such as lt_r10")
     ap.add_argument("--seeds", type=int, nargs="+", default=None,
                     help="defaults to the seed_list in the config")
     ap.add_argument("--smoke", action="store_true",
