@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import pathlib
 import sys
+from importlib import util
 
 import numpy as np
 from scipy import stats
@@ -81,14 +82,20 @@ def coverage_by_subset(variant, precision, mask_fn):
 
 
 def headline(variant):
-    """Reproduce the reported figure, as a check that nothing has drifted."""
+    """Reproduce the reported figure, as a check that nothing has drifted.
+
+    Both quantised arms are compared against full precision, because the
+    thesis makes two claims and the sweep tests the generality of each: that
+    INT8 costs coverage, and that INT4 does not.
+    """
     rows = {}
     for precision in ("fp32", "int8", "int4"):
         rows[precision] = coverage_by_subset(variant, precision,
                                              lambda lab: np.ones(len(lab),
                                                                  bool))
-    delta = [i - f for i, f in zip(rows["int8"], rows["fp32"])]
-    return rows, paired(delta)
+    stats_ = {p: paired([q - f for q, f in zip(rows[p], rows["fp32"])])
+              for p in ("int8", "int4")}
+    return rows, stats_
 
 
 def per_class(variant):
@@ -125,18 +132,38 @@ def drop_rarest(variant):
     return out
 
 
+def sweep_ratios():
+    """The imbalance ratio of every sweep split, from the sweep's own table.
+
+    The ratio is a declared constant of the experiment, so it is read from the
+    script that defines the splits rather than from a generated manifest. The
+    manifest is the stronger record where it is present, because it also
+    carries the digest of the split actually written, but `data/processed` is
+    not committed, so on a machine that only received the probability files
+    the table below is the sole surviving source.
+    """
+    out = {}
+    src = pathlib.Path("scripts/make_imbalance_sweep.py")
+    if src.exists():
+        spec = util.spec_from_file_location("_sweep", src)
+        mod = util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        for name, keep in mod.SWEEP.items():
+            out[name] = max(keep) / min(keep)
+    return out
+
+
 def available_variants():
     """Whatever has been produced, in ratio order where the ratio is known.
 
-    The sweep writes manifest_sweep.json with the imbalance ratio of each
-    split, so the dose-response table orders itself as new points arrive.
+    The dose-response table orders itself as new points arrive, so a partial
+    sweep still reports the points it has.
     """
     seen = sorted({f.name.split("_seed")[0]
                    for f in PROBS.glob("*_seed*_test.npz")})
-    ratios = {"balanced": 1.0, "long_tailed": 100 / 3}
-    man = PROC_MANIFEST
-    if man.exists():
-        for name, rec in json.loads(man.read_text())["splits"].items():
+    ratios = {"balanced": 1.0, "long_tailed": 100 / 3, **sweep_ratios()}
+    if PROC_MANIFEST.exists():
+        for name, rec in json.loads(PROC_MANIFEST.read_text())["splits"].items():
             ratios[name.removeprefix("train_")] = rec["imbalance_ratio"]
     return [(v, ratios.get(v)) for v in
             sorted(seen, key=lambda v: (ratios.get(v) is None,
@@ -147,8 +174,8 @@ def dose_response(variants):
     """Coverage loss against imbalance ratio: the point of the second round."""
     print(f"\n{'=' * 68}\nDOSE RESPONSE   coverage lost to INT8 by imbalance "
           f"ratio\n{'=' * 68}")
-    print(f"  {'variant':12s} {'ratio':>8s} {'FP32':>8s} {'INT8':>8s} "
-          f"{'change':>9s} {'t(4)':>7s}  signs")
+    print(f"  {'variant':12s} {'ratio':>8s} {'FP32':>8s}   "
+          f"{'INT8':>8s} {'t(4)':>7s}   {'INT4':>8s} {'t(4)':>7s}")
     rows = []
     for variant, ratio_ in variants:
         try:
@@ -156,12 +183,14 @@ def dose_response(variants):
         except FileNotFoundError:
             continue
         label = f"{ratio_:.0f}:1" if ratio_ else "?"
-        print(f"  {variant:12s} {label:>8s} {np.mean(cov['fp32']):7.2f}% "
-              f"{np.mean(cov['int8']):7.2f}% {stat['mean']:+8.2f}pp "
-              f"{stat['t']:+7.2f}  {stat['same_sign']}")
+        print(f"  {variant:12s} {label:>8s} {np.mean(cov['fp32']):7.2f}%   "
+              f"{stat['int8']['mean']:+7.2f}pp {stat['int8']['t']:+7.2f}   "
+              f"{stat['int4']['mean']:+7.2f}pp {stat['int4']['t']:+7.2f}")
         rows.append(dict(variant=variant, ratio=ratio_,
                          fp32=float(np.mean(cov["fp32"])),
-                         int8=float(np.mean(cov["int8"])), **stat))
+                         int8=float(np.mean(cov["int8"])),
+                         int4=float(np.mean(cov["int4"])),
+                         **{f"delta_{p}": stat[p] for p in ("int8", "int4")}))
     if len(rows) < 3:
         print("\n  Only one or two points so far. The curve needs the sweep;"
               "\n  see docs/round-two-runbook.md.")
@@ -178,10 +207,11 @@ def report():
 
         rows, stat = headline(variant)
         print(f"\nheadline, all classes")
-        for p in ("fp32", "int8", "int4"):
-            print(f"  {p:5s} {np.mean(rows[p]):6.2f}%")
-        print(f"  INT8 minus FP32: {stat['mean']:+.2f} points  "
-              f"t(4) = {stat['t']:+.2f}  signs {stat['same_sign']}")
+        print(f"  fp32  {np.mean(rows['fp32']):6.2f}%")
+        for p in ("int8", "int4"):
+            print(f"  {p:5s} {np.mean(rows[p]):6.2f}%   "
+                  f"{stat[p]['mean']:+.2f} points against FP32  "
+                  f"t(4) = {stat[p]['t']:+.2f}  signs {stat[p]['same_sign']}")
 
         if variant not in ("long_tailed", "balanced"):
             result[variant] = dict(headline=stat)

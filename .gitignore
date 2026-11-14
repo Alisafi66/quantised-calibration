@@ -2,8 +2,9 @@
 data/raw/*
 data/processed/*
 !data/**/.gitkeep
-# the manifest is the record of what was pinned, so it is kept
+# the manifests are the record of what was pinned and derived, so they are kept
 !data/processed/manifest.json
+!data/processed/manifest_sweep.json
 results/raw/*
 !results/raw/.gitkeep
 # figures are small, reproducible and belong with the text that cites them
