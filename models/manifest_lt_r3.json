@@ -1,0 +1,127 @@
+[
+  {
+    "variant": "lt_r3",
+    "seed": 0,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 72105,
+    "device": "cuda",
+    "train_seconds": 254.1,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r3_seed0\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r3_seed0\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r3_seed0\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "lt_r3",
+    "seed": 1,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 72105,
+    "device": "cuda",
+    "train_seconds": 246.2,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r3_seed1\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r3_seed1\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r3_seed1\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "lt_r3",
+    "seed": 2,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 72105,
+    "device": "cuda",
+    "train_seconds": 245.9,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r3_seed2\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r3_seed2\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r3_seed2\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "lt_r3",
+    "seed": 3,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 72105,
+    "device": "cuda",
+    "train_seconds": 245.8,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r3_seed3\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r3_seed3\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r3_seed3\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  },
+  {
+    "variant": "lt_r3",
+    "seed": 4,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 2,
+    "n_train": 72105,
+    "device": "cuda",
+    "train_seconds": 245.6,
+    "smoke": false,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r3_seed4\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r3_seed4\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r3_seed4\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  }
+]

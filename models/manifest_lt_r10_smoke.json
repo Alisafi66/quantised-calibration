@@ -1,0 +1,27 @@
+[
+  {
+    "variant": "lt_r10",
+    "seed": 0,
+    "model_name": "distilbert-base-uncased",
+    "max_length": 128,
+    "epochs": 1,
+    "n_train": 2000,
+    "device": "cuda",
+    "train_seconds": 4.1,
+    "smoke": true,
+    "artefacts": {
+      "fp32": {
+        "path": "lt_r10_seed0\\fp32.onnx",
+        "size_mb": 256.16
+      },
+      "int8": {
+        "path": "lt_r10_seed0\\int8.onnx",
+        "size_mb": 133.08
+      },
+      "int4": {
+        "path": "lt_r10_seed0\\int4.onnx",
+        "size_mb": 115.75
+      }
+    }
+  }
+]
