@@ -206,8 +206,25 @@ def check_graph_is_the_published_one(fp32: pathlib.Path, variant: str, seed: int
           f"(max difference {gap:.1e} over {n} rows)")
 
 
+def encode_splits(encode) -> dict[str, tuple]:
+    """Tokenise every split once, for all seeds.
+
+    The encoding depends on the tokeniser and `max_length`, never on the seed,
+    so doing it inside the seed loop repeats the same work five times. Hoisting
+    it also makes it impossible for two seeds to be scored against differently
+    encoded inputs.
+    """
+    out = {}
+    for split in ("test", "prob_calib"):
+        data = read_jsonl(PROC / f"{split}.jsonl", split)
+        ids, mask = encode(data.text)
+        out[split] = (data, ids, mask)
+        say(f"  encoded {split:10s} n={len(data):,}")
+    return out
+
+
 def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
-             encode, keep_graphs: bool) -> dict:
+             splits: dict[str, tuple], calib: tuple, keep_graphs: bool) -> dict:
     graph_dir = MODELS / f"{variant}_seed{seed}"
     fp32 = graph_dir / "fp32.onnx"
     if not fp32.exists():
@@ -218,14 +235,10 @@ def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
             f"--seeds {seed} to recreate it.")
 
     say(f"\n[{variant} seed {seed}] {model_size_mb(fp32):.1f} MB fp32")
-    test = read_jsonl(PROC / "test.jsonl", "test")
-    test_ids, test_mask = encode(test.text)
+    test, test_ids, test_mask = splits["test"]
     check_graph_is_the_published_one(fp32, variant, seed, test_ids, test_mask,
                                      test.label)
-
-    ptq = read_jsonl(PROC / "ptq_calib.jsonl", "ptq_calib")
-    n_calib = cfg["quantisation"]["calibration_samples"]
-    calib_ids, calib_mask = encode(ptq.text[:n_calib])
+    calib_ids, calib_mask = calib
 
     graphs: dict[str, pathlib.Path] = {}
     sizes: dict[str, float] = {}
@@ -244,11 +257,7 @@ def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
               f"{(time.time() - t0) / 60:4.1f} min  {found}")
 
     records = {}
-    for split in ("test", "prob_calib"):
-        data = (test if split == "test"
-                else read_jsonl(PROC / f"{split}.jsonl", split))
-        ids, mask = ((test_ids, test_mask) if split == "test"
-                     else encode(data.text))
+    for split, (data, ids, mask) in splits.items():
         payload: dict[str, np.ndarray] = {"label": data.label}
         for arm, graph in graphs.items():
             t0 = time.time()
@@ -309,10 +318,14 @@ def main() -> None:
           "re-scored on CPU.\n")
 
     encode = tokeniser(cfg)
+    splits = encode_splits(encode)
+    ptq = read_jsonl(PROC / "ptq_calib.jsonl", "ptq_calib")
+    calib = encode(ptq.text[:cfg["quantisation"]["calibration_samples"]])
+
     records, t0 = [], time.time()
     for seed in seeds:
-        records.append(run_seed(cfg, args.variant, seed, args.arms, encode,
-                                args.keep_graphs))
+        records.append(run_seed(cfg, args.variant, seed, args.arms, splits,
+                                calib, args.keep_graphs))
 
     MODELS.mkdir(parents=True, exist_ok=True)
     manifest = MODELS / f"manifest_scheme_{args.variant}.json"
