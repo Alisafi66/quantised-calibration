@@ -69,17 +69,81 @@ def quantise_int8(fp32: pathlib.Path, out: pathlib.Path, reader: CalibrationData
     return out
 
 
-def quantise_int4(fp32: pathlib.Path, out: pathlib.Path,
-                  block_size: int = 128, symmetric: bool = False) -> pathlib.Path:
-    """Weight-only block-wise INT4. Runs on CPU; no CUDA involved."""
+def quantise_weight_only(fp32: pathlib.Path, out: pathlib.Path, *,
+                         bits: int = 4, block_size: int = 128,
+                         symmetric: bool = False) -> pathlib.Path:
+    """Weight-only block-wise quantisation at a chosen bit width.
+
+    Activations are left in float throughout, so this isolates what the weights
+    alone cost.  Runs on CPU; no CUDA involved.
+    """
     import onnx
     from onnxruntime.quantization.matmul_nbits_quantizer import MatMulNBitsQuantizer
-    q = MatMulNBitsQuantizer(onnx.load(str(fp32)), bits=4,
+    q = MatMulNBitsQuantizer(onnx.load(str(fp32)), bits=bits,
                              block_size=block_size, is_symmetric=symmetric)
     q.process()
     out.parent.mkdir(parents=True, exist_ok=True)
     q.model.save_model_to_file(str(out), use_external_data_format=False)
     return out
+
+
+def quantise_int4(fp32: pathlib.Path, out: pathlib.Path,
+                  block_size: int = 128, symmetric: bool = False) -> pathlib.Path:
+    """Weight-only block-wise INT4, the published arm."""
+    return quantise_weight_only(fp32, out, bits=4, block_size=block_size,
+                                symmetric=symmetric)
+
+
+def quantise_int8_dynamic(fp32: pathlib.Path, out: pathlib.Path,
+                          op_types: tuple[str, ...] = ("MatMul",)) -> pathlib.Path:
+    """Dynamic INT8: weights quantised ahead of time, activation scales chosen
+    per input at run time rather than fixed from a calibration sample.
+
+    This is the control for the static arm.  Bit width, operator coverage and
+    weight granularity are the same; the only difference is where the
+    activation scale comes from.  If the static arm loses coverage and this one
+    does not, the cause is the fixed calibration rather than eight-bit
+    arithmetic.
+    """
+    from onnxruntime.quantization import QuantType, quantize_dynamic
+    from onnxruntime.quantization.shape_inference import quant_pre_process
+    prepped = out.with_suffix(".prep.onnx")
+    quant_pre_process(str(fp32), str(prepped), skip_symbolic_shape=True)
+    quantize_dynamic(str(prepped), str(out), weight_type=QuantType.QInt8,
+                     per_channel=True, op_types_to_quantize=list(op_types))
+    prepped.unlink(missing_ok=True)
+    return out
+
+
+# The operator a working graph must contain, per route.  A quantiser that
+# produces none of these has silently done nothing.
+QUANTISED_OPS = {
+    "static": ("QLinearMatMul", "MatMulInteger", "QuantizeLinear"),
+    "dynamic": ("MatMulInteger", "DynamicQuantizeLinear"),
+    "weight_only": ("MatMulNBits", "DequantizeLinear"),
+}
+
+
+def assert_quantised(path: pathlib.Path, route: str, label: str) -> dict[str, int]:
+    """Read the written graph back and confirm it really is quantised.
+
+    Not defensive padding.  `MatMulNBitsQuantizer` with `channel_wised_quantize`
+    and the QDQ format returns a graph of plain `MatMul` at full weight size,
+    raising nothing, so an unguarded arm can score the FP32 model and report it
+    as quantised.  That failure produces a plausible number rather than an
+    error, which is why it is checked rather than trusted.
+    """
+    import onnx
+    counts: dict[str, int] = {}
+    for node in onnx.load(str(path), load_external_data=False).graph.node:
+        counts[node.op_type] = counts.get(node.op_type, 0) + 1
+    found = {op: counts[op] for op in QUANTISED_OPS[route] if op in counts}
+    if not found:
+        raise SystemExit(
+            f"{label}: {path.name} contains no quantised operator. Expected one "
+            f"of {QUANTISED_OPS[route]}, found {sorted(counts)}. The quantiser "
+            f"returned a float graph without raising; do not score it.")
+    return found
 
 
 def run_session(path: pathlib.Path, input_ids: np.ndarray, attention_mask: np.ndarray,
