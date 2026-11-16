@@ -25,6 +25,7 @@ from qcal.metrics import (aurc, coverage_and_precision,  # noqa: E402
                           risk_coverage_curve, threshold_for_target_precision)
 
 PROBS = pathlib.Path("results/probs")
+SCHEME = PROBS / "scheme"
 OUT = pathlib.Path("results/figures")
 SEEDS = [0, 1, 2, 3, 4]
 VARIANTS = ["balanced", "long_tailed"]
@@ -33,6 +34,13 @@ PRECISIONS = ["fp32", "int8", "int4"]
 # Colour-blind safe, and distinguishable when printed in greyscale because the
 # three differ in lightness as well as hue.
 COLOUR = {"fp32": "#333333", "int8": "#C44E52", "int4": "#4C72B0"}
+# Two hues, not three. The nearest third hue separates from #C44E52 by 13.7 in
+# normal vision, below the floor at which a reader with full colour vision can
+# tell the pair apart. The distinction the scheme figure draws is binary in any
+# case, and marker shape repeats it so identity never rests on colour alone.
+FIXED_SCALES = "#C44E52"
+FREE_SCALES = "#4C72B0"
+FAINT = "#E3B4B6"
 STYLE = {"fp32": "-", "int8": "--", "int4": ":"}
 LABEL = {"fp32": "FP32", "int8": "INT8", "int4": "INT4"}
 
@@ -311,6 +319,202 @@ def fig_conformal():
     return save(fig, "06_conformal")
 
 
+# Arms of the scheme decomposition, in the order of the contrast chain.
+# `static` marks the arms whose activation scales are fixed from the PTQ
+# sample before deployment rather than recomputed per input.
+SCHEME_ARMS = [
+    ("int8_static", "INT8 static, 48 matmuls", True, "published"),
+    ("int8_static_weights", "INT8 static, 36 matmuls", True, "scheme"),
+    ("int8_dynamic", "INT8 dynamic", False, "scheme"),
+    ("int8_weight_only", "INT8 weight-only", False, "scheme"),
+    ("int4_block128", "INT4 block 128", False, "published"),
+    ("int4_block32", "INT4 block 32", False, "scheme"),
+]
+PUBLISHED_KEY = {"int8_static": "int8", "int4_block128": "int4"}
+
+
+def scheme_coverage(variant: str = "long_tailed", target: float = 0.95):
+    """Coverage per arm per seed under the threshold carried from full precision."""
+    out = {a: [] for a, _, _, _ in SCHEME_ARMS}
+    out["fp32"] = []
+    for seed in SEEDS:
+        test, cal = load(variant, seed)
+        th = threshold_for_target_precision(*conf_corr(cal, "fp32"), target)
+        c, _ = coverage_and_precision(*conf_corr(test, "fp32"), th)
+        out["fp32"].append(100 * c)
+        scheme = np.load(SCHEME / f"{variant}_seed{seed}_test.npz")
+        for arm, _, _, src in SCHEME_ARMS:
+            npz = test if src == "published" else scheme
+            pr = npz[PUBLISHED_KEY.get(arm, arm)]
+            c, _ = coverage_and_precision(
+                pr.max(1), (pr.argmax(1) == npz["label"]).astype(float), th)
+            out[arm].append(100 * c)
+    return {k: np.array(v) for k, v in out.items()}
+
+
+def fig_scheme_decomposition():
+    """Which property of the scheme costs the coverage, and how much of it."""
+    cov = scheme_coverage()
+    fp32 = cov["fp32"].mean()
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 3.1),
+                             gridspec_kw={"width_ratios": [1.3, 1.0]})
+
+    ax = axes[0]
+    ys = np.arange(len(SCHEME_ARMS))[::-1]
+    for y, (arm, label, static, _) in zip(ys, SCHEME_ARMS):
+        # The paired difference, because each arm is compared against the FP32
+        # model trained from the same seed. Plotting the spread of absolute
+        # coverage would show seed-to-seed variation that the pairing cancels,
+        # and every interval would overlap despite t reaching -8.34.
+        d = cov[arm] - cov["fp32"]
+        m, sem = d.mean(), d.std(ddof=1) / np.sqrt(len(SEEDS))
+        colour = FIXED_SCALES if static else FREE_SCALES
+        ax.errorbar(m, y, xerr=sem, fmt="s" if static else "o", ms=5.5,
+                    color=colour, ecolor=colour, elinewidth=1.2, capsize=2.5,
+                    zorder=3)
+        # A value column clear of the zero line, rather than a label trailing
+        # each marker: four of the six arms sit within a point of zero and
+        # their labels would otherwise collide with the FP32 rule.
+        ax.text(1.35, y, f"{m:+.2f}", va="center", ha="left", fontsize=7.5,
+                color="#555555")
+    ax.axvline(0, color=COLOUR["fp32"], ls="--", lw=1.0, zorder=1)
+    ax.text(-0.18, len(SCHEME_ARMS) - 0.62, "FP32", fontsize=7.5,
+            color=COLOUR["fp32"], va="center", ha="right")
+    ax.set_yticks(ys)
+    ax.set_yticklabels([lab for _, lab, _, _ in SCHEME_ARMS], fontsize=8)
+    ax.set_xlabel("change in coverage against FP32 (points)")
+    ax.set_xlim(-10.8, 3.6)
+    ax.set_ylim(-1.5, len(SCHEME_ARMS) - 0.4)
+    ax.scatter([], [], marker="s", s=28, color=FIXED_SCALES,
+               label="scales fixed from the PTQ sample")
+    ax.scatter([], [], marker="o", s=28, color=FREE_SCALES,
+               label="scales free, or activations in float")
+    ax.legend(loc="lower left", fontsize=6.8, handletextpad=0.4,
+              borderpad=0.3, bbox_to_anchor=(-0.015, -0.02))
+    ax.set_title("a. every arm against full precision, paired by seed",
+                 fontsize=8.5, loc="left")
+
+    ax = axes[1]
+    steps = [("attention\nmatmuls",
+              cov["int8_static_weights"].mean() - cov["int8_static"].mean()),
+             ("scale\nsource",
+              cov["int8_dynamic"].mean() - cov["int8_static_weights"].mean()),
+             ("activation\nquantising",
+              cov["int8_weight_only"].mean() - cov["int8_dynamic"].mean())]
+    total = fp32 - cov["int8_static"].mean()
+    base = cov["int8_static"].mean()
+    for i, (name, d) in enumerate(steps):
+        # One hue at two lightness steps: the encoding is magnitude, not
+        # identity, so a second hue would imply a distinction that is not there.
+        ax.bar(i, d, bottom=base, width=0.58,
+               color=FIXED_SCALES if abs(d) > 0.5 * total else FAINT,
+               edgecolor="white", linewidth=1.0, zorder=3)
+        # A tall bar carries its label inside, where there is room; a short
+        # one carries it above. The alternative puts the dominant step's text
+        # across the full-precision rule.
+        if d > 0.25 * total:
+            ax.text(i, base + d / 2, f"{d:+.2f}\n{100 * d / total:.0f}%",
+                    ha="center", va="center", fontsize=7.5, color="white",
+                    linespacing=1.4, zorder=4)
+        else:
+            ax.text(i, base + d + 0.34, f"{d:+.2f}\n{100 * d / total:.0f}%",
+                    ha="center", va="bottom", fontsize=7.5, color="#555555",
+                    linespacing=1.3, zorder=4)
+        if i < len(steps) - 1:
+            ax.plot([i + 0.29, i + 1 - 0.29], [base + d, base + d],
+                    color="#BBBBBB", lw=0.8, zorder=2)
+        base += d
+    ax.axhline(fp32, color=COLOUR["fp32"], ls="--", lw=1.0, zorder=1)
+    ax.text(-0.55, fp32 + 0.12, "FP32", fontsize=7.5, color=COLOUR["fp32"],
+            va="bottom", ha="left")
+    ax.axhline(cov["int8_static"].mean(), color="#BBBBBB", lw=0.8, zorder=1)
+    ax.set_xticks(range(len(steps)))
+    ax.set_xticklabels([n for n, _ in steps], fontsize=7.5)
+    ax.set_xlim(-0.6, 2.62)
+    ax.set_ylabel("coverage (%)")
+    ax.set_ylim(58.3, 70.8)
+    ax.set_title(f"b. the {total:.2f} point gap, one property at a time",
+                 fontsize=8.5, loc="left")
+
+    fig.suptitle("Long-tailed split, five seeds, threshold carried from full "
+                 "precision; bars are the standard error of the paired "
+                 "difference", fontsize=8, color="#666666", y=1.02)
+    fig.tight_layout()
+    return save(fig, "07_scheme_decomposition")
+
+
+def fig_imbalance_dose_response():
+    """Coverage lost to INT8 as the training imbalance is varied."""
+    from scipy import stats
+    # The ratio of a split is the largest keep rate over the smallest, taken
+    # from the rates in scripts/make_imbalance_sweep.py. lt_r3 is 1/0.33, not
+    # 10/3: naming it r3 rounds, and fitting the rounded value moves the slope.
+    points = [(1.0, "balanced"), (1 / 0.33, "lt_r3"), (1 / 0.10, "lt_r10"),
+              (1 / 0.03, "long_tailed"), (1 / 0.01, "lt_r100")]
+    ratios, fp32s, int8s, losses = [], [], [], []
+    for ratio, variant in points:
+        f, i = [], []
+        for seed in SEEDS:
+            test, cal = load(variant, seed)
+            th = threshold_for_target_precision(*conf_corr(cal, "fp32"), 0.95)
+            cf, _ = coverage_and_precision(*conf_corr(test, "fp32"), th)
+            ci, _ = coverage_and_precision(*conf_corr(test, "int8"), th)
+            f.append(100 * cf)
+            i.append(100 * ci)
+        ratios.append(ratio)
+        fp32s.append(np.mean(f))
+        int8s.append(np.mean(i))
+        losses.append(np.mean(i) - np.mean(f))
+    ratios = np.array(ratios)
+
+    fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.9))
+    ax = axes[0]
+    ax.fill_between(ratios, int8s, fp32s, color=FIXED_SCALES, alpha=0.12, lw=0)
+    for series, key, mk in ((fp32s, "fp32", "o"), (int8s, "int8", "s")):
+        ax.plot(ratios, series, STYLE[key], color=COLOUR[key], lw=1.8,
+                marker=mk, ms=5, label=LABEL[key])
+    ax.set_xscale("log")
+    ax.set_xlabel("training imbalance ratio")
+    ax.set_ylabel("coverage at a 95% target (%)")
+    ax.set_xticks([1, 3, 10, 33, 100])
+    ax.set_xticklabels(["1:1", "3:1", "10:1", "33:1", "100:1"])
+    ax.set_xlim(0.78, 128)
+    ax.legend(loc="lower left", fontsize=8)
+    ax.set_title("a. coverage falls as the tail lengthens", fontsize=8.5,
+                 loc="left")
+
+    ax = axes[1]
+    lg = np.log10(ratios)
+    fit = stats.linregress(lg, losses)
+    xs = np.linspace(lg.min(), lg.max(), 50)
+    ax.plot(10 ** xs, fit.intercept + fit.slope * xs, "-", color="#BBBBBB",
+            lw=1.0, zorder=1)
+    ax.plot(ratios, losses, marker="s", ms=6, color=FIXED_SCALES, ls="none",
+            zorder=3)
+    for n, (r, l) in enumerate(zip(ratios, losses)):
+        # The leftmost label would run past the spine if it were centred.
+        ha, dx = ("left", -6) if n == 0 else ("center", 0)
+        ax.annotate(f"{l:+.2f}", (r, l), textcoords="offset points",
+                    xytext=(dx, -13), ha=ha, fontsize=7.5, color="#555555")
+    ax.axhline(0, color=COLOUR["fp32"], lw=0.8)
+    ax.set_xscale("log")
+    ax.set_xlabel("training imbalance ratio")
+    ax.set_ylabel("coverage lost to INT8 (points)")
+    ax.set_xticks([1, 3, 10, 33, 100])
+    ax.set_xticklabels(["1:1", "3:1", "10:1", "33:1", "100:1"])
+    ax.set_ylim(min(losses) - 3.0, 2.2)
+    ax.set_xlim(0.78, 128)
+    ax.set_title(f"b. {fit.slope:.2f} points per decade, "
+                 f"$R^2$ = {fit.rvalue ** 2:.3f}", fontsize=8.5, loc="left")
+
+    fig.suptitle("Five seeds per ratio, threshold carried from full precision; "
+                 "the effect is present and significant at 1:1", fontsize=8,
+                 color="#666666", y=1.04)
+    fig.tight_layout()
+    return save(fig, "08_imbalance_dose_response")
+
+
+
 if __name__ == "__main__":
     import matplotlib
     matplotlib.use("Agg")
@@ -322,7 +526,11 @@ if __name__ == "__main__":
                           ("03_coverage_by_target", fig_coverage_by_target),
                           ("04_per_class_ece", fig_per_class),
                           ("05_temperature_scaling", fig_temperature),
-                          ("06_conformal", fig_conformal)):
+                          ("06_conformal", fig_conformal),
+                          ("07_scheme_decomposition",
+                           fig_scheme_decomposition),
+                          ("08_imbalance_dose_response",
+                           fig_imbalance_dose_response)):
         builder()
         plt.close("all")
         print(" ", name)
