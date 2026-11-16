@@ -1,0 +1,133 @@
+{
+  "variant": "long_tailed",
+  "arms": {
+    "int8_static_weights": {
+      "bits": 8,
+      "activations": "static",
+      "grain": "per-channel",
+      "nodes": 36,
+      "route": "static"
+    },
+    "int8_dynamic": {
+      "bits": 8,
+      "activations": "dynamic",
+      "grain": "per-channel",
+      "nodes": 36,
+      "route": "dynamic"
+    }
+  },
+  "contrasts": [
+    {
+      "property": "attention matmuls",
+      "arm": "int8_static_weights",
+      "reference": "int8_static",
+      "note": "the 12 activation-by-activation products Q.K^T and attention.V left in float, against all 48 quantised"
+    },
+    {
+      "property": "static calibration",
+      "arm": "int8_dynamic",
+      "reference": "int8_static_weights",
+      "note": "activation scales recomputed per input, against scales fixed from a calibration sample"
+    },
+    {
+      "property": "activation quantisation",
+      "arm": "int8_weight_only",
+      "reference": "int8_dynamic",
+      "note": "activations left in float, against activations quantised at run time"
+    },
+    {
+      "property": "bit width",
+      "arm": "int4_block128",
+      "reference": "int8_weight_only",
+      "note": "four bits against eight, both weight-only at block 128"
+    },
+    {
+      "property": "weight granularity",
+      "arm": "int4_block32",
+      "reference": "int4_block128",
+      "note": "block 32 against block 128, both weight-only at four bits"
+    }
+  ],
+  "seeds": [
+    {
+      "variant": "long_tailed",
+      "seed": 0,
+      "arms": [
+        "int8_static_weights",
+        "int8_dynamic"
+      ],
+      "sizes_mb": {
+        "int8_static_weights": 133.07,
+        "int8_dynamic": 133.05
+      },
+      "probs": {
+        "test": "results\\probs\\scheme\\long_tailed_seed0_test.npz",
+        "prob_calib": "results\\probs\\scheme\\long_tailed_seed0_prob_calib.npz"
+      }
+    },
+    {
+      "variant": "long_tailed",
+      "seed": 1,
+      "arms": [
+        "int8_static_weights",
+        "int8_dynamic"
+      ],
+      "sizes_mb": {
+        "int8_static_weights": 133.07,
+        "int8_dynamic": 133.05
+      },
+      "probs": {
+        "test": "results\\probs\\scheme\\long_tailed_seed1_test.npz",
+        "prob_calib": "results\\probs\\scheme\\long_tailed_seed1_prob_calib.npz"
+      }
+    },
+    {
+      "variant": "long_tailed",
+      "seed": 2,
+      "arms": [
+        "int8_static_weights",
+        "int8_dynamic"
+      ],
+      "sizes_mb": {
+        "int8_static_weights": 133.07,
+        "int8_dynamic": 133.05
+      },
+      "probs": {
+        "test": "results\\probs\\scheme\\long_tailed_seed2_test.npz",
+        "prob_calib": "results\\probs\\scheme\\long_tailed_seed2_prob_calib.npz"
+      }
+    },
+    {
+      "variant": "long_tailed",
+      "seed": 3,
+      "arms": [
+        "int8_static_weights",
+        "int8_dynamic"
+      ],
+      "sizes_mb": {
+        "int8_static_weights": 133.07,
+        "int8_dynamic": 133.05
+      },
+      "probs": {
+        "test": "results\\probs\\scheme\\long_tailed_seed3_test.npz",
+        "prob_calib": "results\\probs\\scheme\\long_tailed_seed3_prob_calib.npz"
+      }
+    },
+    {
+      "variant": "long_tailed",
+      "seed": 4,
+      "arms": [
+        "int8_static_weights",
+        "int8_dynamic"
+      ],
+      "sizes_mb": {
+        "int8_static_weights": 133.07,
+        "int8_dynamic": 133.05
+      },
+      "probs": {
+        "test": "results\\probs\\scheme\\long_tailed_seed4_test.npz",
+        "prob_calib": "results\\probs\\scheme\\long_tailed_seed4_prob_calib.npz"
+      }
+    }
+  ]
+}
