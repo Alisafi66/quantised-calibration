@@ -277,6 +277,24 @@ def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
                   f"{(time.time() - t0) / 60:4.1f} min")
         OUT.mkdir(parents=True, exist_ok=True)
         path = OUT / f"{variant}_seed{seed}_{split}.npz"
+        if path.exists():
+            # Arms are often produced in separate runs, so a later run must add
+            # to this file rather than replace it. Without this, running two
+            # arms and then two more would silently leave only the last two,
+            # and the contrast chain would be missing half its links with
+            # nothing to say so.
+            prior = np.load(path)
+            if not np.array_equal(prior["label"], payload["label"]):
+                raise SystemExit(
+                    f"{path.name} holds a different label vector. Delete it "
+                    f"and rebuild every arm rather than mixing two row orders.")
+            kept = [k for k in prior.files
+                    if k != "label" and k not in payload]
+            for k in kept:
+                payload[k] = prior[k]
+            if kept:
+                say(f"  kept {len(kept)} arm(s) already in {path.name}: "
+                    f"{', '.join(sorted(kept))}")
         np.savez_compressed(path, **payload)
         records[split] = str(path)
         say(f"  wrote {path.name}  ({path.stat().st_size / 1024:.0f} KB, "
