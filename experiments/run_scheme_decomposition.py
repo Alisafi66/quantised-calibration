@@ -42,7 +42,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 from qcal.data import read_jsonl  # noqa: E402
 from qcal.onnx_quant import (EncodedReader, assert_quantised,  # noqa: E402
-                             model_size_mb, quantise_int8,
+                             model_size_mb, node_roles, quantise_int8,
                              quantise_int8_dynamic, quantise_weight_only,
                              run_session)
 
@@ -67,32 +67,43 @@ OUT = PROBS / "scheme"
 # recomputed; they are named here because the contrasts refer to them.
 ARMS: dict[str, dict] = {
     "int8_static": dict(
-        bits=8, activations="static", grain="per-channel",
+        bits=8, activations="static", grain="per-channel", nodes=48,
         route="static", published="int8"),
+    "int8_static_weights": dict(
+        bits=8, activations="static", grain="per-channel", nodes=36,
+        route="static",
+        build=lambda fp32, out, ctx: quantise_int8(
+            fp32, out, EncodedReader(*ctx["calib"]),
+            nodes_to_exclude=ctx["roles"]["attention"])),
     "int8_dynamic": dict(
-        bits=8, activations="dynamic", grain="per-channel",
-        route="dynamic", build=lambda fp32, out, _: quantise_int8_dynamic(fp32, out)),
+        bits=8, activations="dynamic", grain="per-channel", nodes=36,
+        route="dynamic",
+        build=lambda fp32, out, ctx: quantise_int8_dynamic(fp32, out)),
     "int8_weight_only": dict(
-        bits=8, activations="none", grain="block-128",
+        bits=8, activations="none", grain="block-128", nodes=36,
         route="weight_only",
-        build=lambda fp32, out, _: quantise_weight_only(fp32, out, bits=8,
-                                                        block_size=128)),
+        build=lambda fp32, out, ctx: quantise_weight_only(fp32, out, bits=8,
+                                                          block_size=128)),
     "int4_block128": dict(
-        bits=4, activations="none", grain="block-128",
+        bits=4, activations="none", grain="block-128", nodes=36,
         route="weight_only", published="int4"),
     "int4_block32": dict(
-        bits=4, activations="none", grain="block-32",
+        bits=4, activations="none", grain="block-32", nodes=36,
         route="weight_only",
-        build=lambda fp32, out, _: quantise_weight_only(fp32, out, bits=4,
-                                                        block_size=32)),
+        build=lambda fp32, out, ctx: quantise_weight_only(fp32, out, bits=4,
+                                                          block_size=32)),
 }
 
 NEW_ARMS = [a for a, spec in ARMS.items() if "published" not in spec]
 
-# Each contrast isolates one property. The named arm is compared against the
-# reference arm, and only the listed property differs between them.
+# Each contrast moves one property and holds the rest, including the set of
+# nodes quantised. The chain runs from the published INT8 arm down to the
+# published INT4 arm, so the whole reported gap is decomposed.
 CONTRASTS = [
-    ("static calibration", "int8_dynamic", "int8_static",
+    ("attention matmuls", "int8_static_weights", "int8_static",
+     "the 12 activation-by-activation products Q.K^T and attention.V left in "
+     "float, against all 48 quantised"),
+    ("static calibration", "int8_dynamic", "int8_static_weights",
      "activation scales recomputed per input, against scales fixed from a "
      "calibration sample"),
     ("activation quantisation", "int8_weight_only", "int8_dynamic",
@@ -238,7 +249,10 @@ def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
     test, test_ids, test_mask = splits["test"]
     check_graph_is_the_published_one(fp32, variant, seed, test_ids, test_mask,
                                      test.label)
-    calib_ids, calib_mask = calib
+    ctx = {"calib": calib, "roles": node_roles(fp32), "cfg": cfg}
+    say(f"  nodes: {len(ctx['roles']['weight'])} weight projections, "
+        f"{len(ctx['roles']['attention'])} attention products, "
+        f"{len(ctx['roles']['classifier'])} classifier")
 
     graphs: dict[str, pathlib.Path] = {}
     sizes: dict[str, float] = {}
@@ -246,10 +260,7 @@ def run_seed(cfg: dict, variant: str, seed: int, arms: list[str],
         spec = ARMS[arm]
         out = graph_dir / f"{arm}.onnx"
         t0 = time.time()
-        if arm == "int8_static":
-            quantise_int8(fp32, out, EncodedReader(calib_ids, calib_mask))
-        else:
-            spec["build"](fp32, out, cfg)
+        spec["build"](fp32, out, ctx)
         found = assert_quantised(out, spec["route"], f"{variant} seed {seed} {arm}")
         sizes[arm] = round(model_size_mb(out), 2)
         graphs[arm] = out

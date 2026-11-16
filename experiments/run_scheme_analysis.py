@@ -36,22 +36,26 @@ TARGET = 0.95
 # their original names in the original files and are not recomputed.
 SOURCE = {
     "int8_static": ("published", "int8"),
-    "int4_block128": ("published", "int4"),
+    "int8_static_weights": ("scheme", "int8_static_weights"),
     "int8_dynamic": ("scheme", "int8_dynamic"),
     "int8_weight_only": ("scheme", "int8_weight_only"),
+    "int4_block128": ("published", "int4"),
     "int4_block32": ("scheme", "int4_block32"),
 }
 
+# bits, activations, weight scales, matrix multiplications quantised
 PROPERTIES = {
-    "int8_static": ("8 bit", "static, calibrated", "per-channel"),
-    "int8_dynamic": ("8 bit", "dynamic, per input", "per-channel"),
-    "int8_weight_only": ("8 bit", "float", "block-128"),
-    "int4_block128": ("4 bit", "float", "block-128"),
-    "int4_block32": ("4 bit", "float", "block-32"),
+    "int8_static": ("8 bit", "static, calibrated", "per-channel", 48),
+    "int8_static_weights": ("8 bit", "static, calibrated", "per-channel", 36),
+    "int8_dynamic": ("8 bit", "dynamic, per input", "per-channel", 36),
+    "int8_weight_only": ("8 bit", "float", "block-128", 36),
+    "int4_block128": ("4 bit", "float", "block-128", 36),
+    "int4_block32": ("4 bit", "float", "block-32", 36),
 }
 
 CONTRASTS = [
-    ("static calibration", "int8_dynamic", "int8_static"),
+    ("attention matmuls", "int8_static_weights", "int8_static"),
+    ("static calibration", "int8_dynamic", "int8_static_weights"),
     ("activation quantisation", "int8_weight_only", "int8_dynamic"),
     ("bit width", "int4_block128", "int8_weight_only"),
     ("weight granularity", "int4_block32", "int4_block128"),
@@ -130,17 +134,20 @@ def main() -> None:
 
     fp32 = next(iter(series.values()))[3] if series else None
     if fp32 is not None:
-        print(f"\n  {'arm':17s} {'bits':>5s} {'activations':>19s} "
-              f"{'weights':>11s} {'coverage':>9s} {'vs FP32':>9s} {'t':>7s} "
-              f"{'ECE':>6s}")
-        print(f"  {'fp32':17s} {'32':>5s} {'float':>19s} {'float':>11s} "
-              f"{fp32.mean():8.2f}% {'':>9s} {'':>7s}")
-        for arm, (cov, ece, acc, base) in series.items():
+        print(f"\n  {'arm':20s} {'bits':>5s} {'activations':>19s} "
+              f"{'weights':>11s} {'mm':>3s} {'coverage':>9s} {'vs FP32':>9s} "
+              f"{'t':>7s} {'ECE':>6s}")
+        print(f"  {'fp32':20s} {'32':>5s} {'float':>19s} {'float':>11s} "
+              f"{'0':>3s} {fp32.mean():8.2f}%")
+        for arm in PROPERTIES:
+            if arm not in series:
+                continue
+            cov, ece, acc, base = series[arm]
             st = paired(cov - base)
-            bits, act, grain = PROPERTIES[arm]
-            print(f"  {arm:17s} {bits:>5s} {act:>19s} {grain:>11s} "
-                  f"{cov.mean():8.2f}% {st['mean']:+8.2f}pp {st['t']:+7.2f} "
-                  f"{ece.mean():6.4f}")
+            bits, act, grain, nodes = PROPERTIES[arm]
+            print(f"  {arm:20s} {bits:>5s} {act:>19s} {grain:>11s} "
+                  f"{nodes:3d} {cov.mean():8.2f}% {st['mean']:+8.2f}pp "
+                  f"{st['t']:+7.2f} {ece.mean():6.4f}")
 
     print(f"\n{'=' * 76}\nONE PROPERTY AT A TIME   (t critical at "
           f"{len(seeds) - 1} df is {t_crit:.3f})\n{'=' * 76}")

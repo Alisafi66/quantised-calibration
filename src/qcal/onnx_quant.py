@@ -45,8 +45,42 @@ class EncodedReader(CalibrationDataReader):
         self.i = 0
 
 
+def node_roles(graph: pathlib.Path) -> dict[str, list[str]]:
+    """Split the matrix multiplications by the role they play.
+
+    Three kinds behave differently under quantisation and must be separable:
+
+    `weight`      a projection against a learned constant: the 36 query, key,
+                  value, attention-output and two feed-forward matrices.
+    `attention`   the 12 multiplications of one activation by another, Q.K^T
+                  and attention.V, which have no constant operand. These carry
+                  the activation outliers that motivated LLM.int8.
+    `classifier`  the head, carrying both a weight and a bias.
+
+    Static INT8 reaches all 48 of the first two; the weight-only quantisers
+    reach only the 36. Comparing them therefore varies coverage as well as
+    scheme unless the sets are controlled, which is what this makes possible.
+    """
+    import onnx
+    g = onnx.load(str(graph), load_external_data=False).graph
+    inits = {i.name for i in g.initializer}
+    roles: dict[str, list[str]] = {"weight": [], "attention": [], "classifier": []}
+    for n in g.node:
+        if n.op_type not in ("MatMul", "Gemm"):
+            continue
+        n_const = sum(1 for i in n.input if i in inits)
+        if n_const >= 2:
+            roles["classifier"].append(n.name)
+        elif n_const == 1:
+            roles["weight"].append(n.name)
+        else:
+            roles["attention"].append(n.name)
+    return roles
+
+
 def quantise_int8(fp32: pathlib.Path, out: pathlib.Path, reader: CalibrationDataReader,
-                  op_types: tuple[str, ...] = ("MatMul",)) -> pathlib.Path:
+                  op_types: tuple[str, ...] = ("MatMul",),
+                  nodes_to_exclude: list[str] | None = None) -> pathlib.Path:
     """Static INT8 on the matrix multiplications, calibrated on the PTQ sample.
 
     Restricting quantisation to MatMul is not a convenience, it is the only
@@ -64,7 +98,8 @@ def quantise_int8(fp32: pathlib.Path, out: pathlib.Path, reader: CalibrationData
     quant_pre_process(str(fp32), str(prepped), skip_symbolic_shape=True)
     quantize_static(str(prepped), str(out), reader,
                     activation_type=QuantType.QUInt8, weight_type=QuantType.QInt8,
-                    per_channel=True, op_types_to_quantize=list(op_types))
+                    per_channel=True, op_types_to_quantize=list(op_types),
+                    nodes_to_exclude=list(nodes_to_exclude or []))
     prepped.unlink(missing_ok=True)
     return out
 
@@ -95,7 +130,9 @@ def quantise_int4(fp32: pathlib.Path, out: pathlib.Path,
 
 
 def quantise_int8_dynamic(fp32: pathlib.Path, out: pathlib.Path,
-                          op_types: tuple[str, ...] = ("MatMul",)) -> pathlib.Path:
+                          op_types: tuple[str, ...] = ("MatMul",),
+                          nodes_to_exclude: list[str] | None = None,
+                          exclude_classifier: bool = True) -> pathlib.Path:
     """Dynamic INT8: weights quantised ahead of time, activation scales chosen
     per input at run time rather than fixed from a calibration sample.
 
@@ -108,9 +145,33 @@ def quantise_int8_dynamic(fp32: pathlib.Path, out: pathlib.Path,
     from onnxruntime.quantization import QuantType, quantize_dynamic
     from onnxruntime.quantization.shape_inference import quant_pre_process
     prepped = out.with_suffix(".prep.onnx")
-    quant_pre_process(str(fp32), str(prepped), skip_symbolic_shape=True)
+    # Symbolic shape inference must run here, unlike in the static path.
+    # `quantize_dynamic` re-infers shapes under a strict check, and without
+    # ORT's symbolic pass the dynamic batch dimension is annotated
+    # inconsistently, which fails with "Inferred shape and existing shape
+    # differ in dimension 0: (768) vs (4)".
+    quant_pre_process(str(fp32), str(prepped), skip_symbolic_shape=False)
+
+    exclude = list(nodes_to_exclude or [])
+    if exclude_classifier:
+        # Pre-processing decomposes the classifier Gemm into MatMul plus Add,
+        # so the node the quantiser sees is `node_linear_37_MatMul`, not
+        # `node_linear_37`. Resolving the names against the pre-processed
+        # graph keeps this arm on the same 36 projections as every other arm;
+        # without it the head is quantised here and nowhere else, and the
+        # contrast would vary coverage as well as scheme.
+        import onnx
+        heads = tuple(node_roles(fp32)["classifier"])
+        g = onnx.load(str(prepped), load_external_data=False).graph
+        found = [n.name for n in g.node if n.name.startswith(heads)]
+        # The quantiser rewrites a Gemm into `<name>_MatMul` on its way to
+        # MatMulInteger and matches the exclusion list against that new name,
+        # so both forms are listed.
+        exclude += found + [f"{n}_MatMul" for n in found]
+
     quantize_dynamic(str(prepped), str(out), weight_type=QuantType.QInt8,
-                     per_channel=True, op_types_to_quantize=list(op_types))
+                     per_channel=True, op_types_to_quantize=list(op_types),
+                     nodes_to_exclude=exclude)
     prepped.unlink(missing_ok=True)
     return out
 

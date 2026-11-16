@@ -13,20 +13,35 @@ So the claim rests on a two-point comparison with three confounded variables,
 and an examiner can decline to accept it. This round adds three arms so that
 every comparison moves exactly one property.
 
-| arm | bit width | activations | weight scales |
-|---|---|---|---|
-| `int8_static` | 8 | static, calibrated | per-channel |
-| `int8_dynamic` | 8 | dynamic, recomputed per input | per-channel |
-| `int8_weight_only` | 8 | float | block 128 |
-| `int4_block128` | 4 | float | block 128 |
-| `int4_block32` | 4 | float | block 32 |
+| arm | bit width | activations | weight scales | matmuls quantised |
+|---|---|---|---|---|
+| `int8_static` (published) | 8 | static, calibrated | per-channel | **48** |
+| `int8_static_weights` | 8 | static, calibrated | per-channel | 36 |
+| `int8_dynamic` | 8 | dynamic, per input | per-channel | 36 |
+| `int8_weight_only` | 8 | float | block 128 | 36 |
+| `int4_block128` (published) | 4 | float | block 128 | 36 |
+| `int4_block32` | 4 | float | block 32 | 36 |
+
+The last column is a confound found by inspecting the published graphs, not by
+reading the configuration. DistilBERT's encoder holds 48 matrix
+multiplications: 36 projections against a learned weight, and 12 products of
+one activation by another, `Q.K^T` and `attention.V`. Static INT8 quantises all
+48. Every weight-only quantiser reaches only the 36, because the other 12 have
+no constant operand to quantise ahead of time. So the published INT8 against
+INT4 comparison varies coverage as well as scheme, and those 12 are exactly
+where the activation outliers of LLM.int8 live. `int8_static_weights` exists to
+separate the two.
 
 | property under test | arm | against | everything else held |
 |---|---|---|---|
-| static calibration | `int8_dynamic` | `int8_static` | bits, operators, weight grain |
-| activation quantisation | `int8_weight_only` | `int8_dynamic` | bits |
-| bit width | `int4_block128` | `int8_weight_only` | activations, block size |
-| weight granularity | `int4_block32` | `int4_block128` | bits, activations |
+| attention matmuls | `int8_static_weights` | `int8_static` | bits, activations, weight grain |
+| static calibration | `int8_dynamic` | `int8_static_weights` | bits, nodes, weight grain |
+| activation quantisation | `int8_weight_only` | `int8_dynamic` | bits, nodes |
+| bit width | `int4_block128` | `int8_weight_only` | activations, nodes, block size |
+| weight granularity | `int4_block32` | `int4_block128` | bits, activations, nodes |
+
+The chain runs from the published INT8 arm to the published INT4 arm, so the
+whole reported gap is decomposed rather than a part of it.
 
 **Nothing is fine-tuned.** Every seed's exported FP32 graph is already on the
 machine that trained it, so this re-quantises that graph and scores the test
@@ -100,7 +115,7 @@ is why the written graph is read back and checked.
 python experiments\run_scheme_decomposition.py --variant long_tailed --seeds 0 1 2 3 4
 ```
 
-Three new arms, five seeds. The two published arms are not recomputed.
+Four new arms, five seeds. `--arms` runs a subset if some are already done. The two published arms are not recomputed.
 
 Expect roughly **sixteen to twenty minutes per seed**, so **about one and a
 half to two hours**, almost all of it CPU inference on 13,600 rows per arm.
