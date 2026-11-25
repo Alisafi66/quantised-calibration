@@ -22,9 +22,9 @@ APS accumulates sorted probability mass until the true label is reached. Sets
 are larger, and conditional coverage is better behaved.
 
 Both are offered in a Mondrian (class-conditional) form, which calibrates a
-separate threshold per class. That is the construction El Allam and Hamlich
-(2026) found necessary to stop pooled calibration concealing undercoverage on
-a minority class.
+separate threshold per class. El Allam and Hamlich (2025) adopt the same
+construction for an imbalanced medical task, on the argument that a minority
+class warrants its own threshold; they report no pooled comparison.
 """
 from __future__ import annotations
 

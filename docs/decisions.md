@@ -385,10 +385,11 @@ from 1.455 to 1.242 at INT8. That is not a trade: pooled calibration wastes set
 size over-covering classes that need no help, and spending exactly the error
 budget in each class is both fairer and tighter.
 
-This reproduces independently, in four-class text classification, what El Allam
-and Hamlich (2026) report for binary electrocardiogram classification on a
-microcontroller, where Mondrian conditioning cut their class-coverage gap from
-3.06 to 0.12 percentage points. The effect here is present at full precision,
+El Allam and Hamlich (2025) adopt the same class-conditional construction for
+binary electrocardiogram classification on a microcontroller, reporting 7.37 per
+cent miscoverage for the majority class against 15.82 per cent for the minority
+class (their Table 2, p. 9). They run no pooled comparison, so the result above
+is not a reproduction of theirs. The effect here is present at full precision,
 so it is a property of imbalance rather than of quantisation.
 
 ---
@@ -467,7 +468,7 @@ calibration error.
 The question as written asked what overhead each remedy adds. On this evidence
 that is close to a non-question: temperature scaling is a single division, and
 conformal set construction is a threshold comparison that El Allam and Hamlich
-(2026) measured at under 0.1 ms on a microcontroller far weaker than this
+(2025) measured at under 0.1 ms on a microcontroller far weaker than this
 device. Both are negligible against a 126 ms inference.
 
 The measurement that carries weight is the one above: what the compression buys
